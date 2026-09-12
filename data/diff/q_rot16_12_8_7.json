@@ -1,0 +1,46 @@
+{
+ "target": "q",
+ "rounds": null,
+ "rot": [
+  16,
+  12,
+  8,
+  7
+ ],
+ "lower_bound_weight": 0,
+ "best_trail_weight": 0,
+ "optimal": true,
+ "best_trail": {
+  "trail": [
+   [
+    "in",
+    [
+     "00000000",
+     "80000000",
+     "00000000",
+     "80008000"
+    ]
+   ],
+   [
+    "out",
+    [
+     "80000000",
+     "00000040",
+     "80000000",
+     "00000000"
+    ]
+   ]
+  ],
+  "weight_check": 0
+ },
+ "log": [
+  {
+   "k": 0,
+   "result": true,
+   "seconds": 0.0
+  }
+ ],
+ "seconds": 0.0,
+ "vars": 508,
+ "clauses": 2264
+}

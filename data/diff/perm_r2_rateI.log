@@ -35,3 +35,4 @@ perm_r2_rot16_12_8_7_rateI: vars=6592 clauses=36480 weight_lits=1984
   k<=33: UNSAT (1347.5s)
   k<=34: UNSAT (1539.4s)
   k<=35: UNSAT (1869.4s)
+  k<=36: UNSAT (2904.1s)

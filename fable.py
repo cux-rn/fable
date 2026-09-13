@@ -1,5 +1,5 @@
 """
-Fable v0.1 — reference implementation (NOT for production use).
+Fable v0.3 — reference implementation (NOT for production use).
 
 Implements:
   - Fable-P   : 512-bit ARX permutation (16 x 32-bit words)
@@ -25,10 +25,15 @@ RC = [
 
 ROT = (16, 12, 8, 7)          # provisional, see spec §2.2
 R_HEAVY = 12
-R_LIGHT = 6
+
+# Parameter sets: name -> (light rounds, IV1)
+PARAMS = {
+    'fable':   (8, 0x012020C8),   # default: ver 1 | key 32B | rate 32B | rounds 12/8
+    'fable-f': (6, 0x012020C6),   # fast:    rounds 12/6 (ChaCha12-level margin)
+}
+DEFAULT_SET = 'fable'
 
 IV0_AEAD = 0x4661626C         # "Fabl"
-IV1_AEAD = 0x012020C6         # ver 1 | key 32B | rate 32B | rounds 12/6
 IV1_HASH = 0x01202000
 
 RATE_WORDS = 8                # 256-bit rate
@@ -91,24 +96,25 @@ def _xor_rate(s, block_words):
 
 # ---- AEAD -----------------------------------------------------------------
 
-def _init(key, nonce):
+def _init(key, nonce, pset):
     assert len(key) == KEY_BYTES and len(nonce) == NONCE_BYTES
+    r_light, iv1 = PARAMS[pset]
     k = _words(key)
-    s = [IV0_AEAD, IV1_AEAD] + k + _words(nonce)
+    s = [IV0_AEAD, iv1] + k + _words(nonce)
     permute(s, R_HEAVY)
     for j in range(8):
         s[8 + j] ^= k[j]
-    return s, k
+    return s, k, r_light
 
 
-def _absorb_ad(s, ad):
+def _absorb_ad(s, ad, r_light):
     if ad:
         full, rem = divmod(len(ad), 32)
         for i in range(full):
             _xor_rate(s, _words(ad[i * 32:(i + 1) * 32]))
-            permute(s, R_LIGHT)
+            permute(s, r_light)
         _xor_rate(s, _words(_pad(ad[full * 32:])))
-        permute(s, R_LIGHT)
+        permute(s, r_light)
     s[15] ^= 0x80000000                       # domain separation
 
 
@@ -119,16 +125,16 @@ def _finalize(s, k):
     return _bytes(s[:RATE_WORDS])
 
 
-def aead_encrypt(key, nonce, ad, msg):
+def aead_encrypt(key, nonce, ad, msg, pset=DEFAULT_SET):
     """Returns ciphertext || tag."""
-    s, k = _init(key, nonce)
-    _absorb_ad(s, ad)
+    s, k, r_light = _init(key, nonce, pset)
+    _absorb_ad(s, ad, r_light)
     out = bytearray()
     full, rem = divmod(len(msg), 32)
     for i in range(full):
         _xor_rate(s, _words(msg[i * 32:(i + 1) * 32]))
         out += _bytes(s[:RATE_WORDS])
-        permute(s, R_LIGHT)
+        permute(s, r_light)
     last = msg[full * 32:]
     _xor_rate(s, _words(_pad(last)))
     out += _bytes(s[:RATE_WORDS])[:len(last)]
@@ -136,13 +142,13 @@ def aead_encrypt(key, nonce, ad, msg):
     return bytes(out) + tag
 
 
-def aead_decrypt(key, nonce, ad, ct, tag_len=TAG_BYTES):
+def aead_decrypt(key, nonce, ad, ct, tag_len=TAG_BYTES, pset=DEFAULT_SET):
     """Returns plaintext, or raises ValueError on authentication failure."""
     if len(ct) < tag_len:
         raise ValueError('ciphertext too short')
     body, tag = ct[:-tag_len], ct[-tag_len:]
-    s, k = _init(key, nonce)
-    _absorb_ad(s, ad)
+    s, k, r_light = _init(key, nonce, pset)
+    _absorb_ad(s, ad, r_light)
     out = bytearray()
     full, rem = divmod(len(body), 32)
     for i in range(full):
@@ -150,7 +156,7 @@ def aead_decrypt(key, nonce, ad, ct, tag_len=TAG_BYTES):
         p = [s[j] ^ c[j] for j in range(RATE_WORDS)]
         out += _bytes(p)
         s[:RATE_WORDS] = c
-        permute(s, R_LIGHT)
+        permute(s, r_light)
     last_c = body[full * 32:]
     ks = _bytes(s[:RATE_WORDS])
     last_p = bytes(a ^ b for a, b in zip(last_c, ks))
@@ -176,18 +182,18 @@ def _chunk_nonce(nf, ctr, last):
     return nf + struct.pack('<I', ctr) + bytes([1 if last else 0])
 
 
-def stream_encrypt(key, file_nonce, data, chunk=DEFAULT_CHUNK):
+def stream_encrypt(key, file_nonce, data, chunk=DEFAULT_CHUNK, pset=DEFAULT_SET):
     header = STREAM_MAGIC + bytes([STREAM_VER]) + struct.pack('<I', chunk) + file_nonce
     out = bytearray(header)
     n_chunks = len(data) // chunk + 1          # always a (possibly empty) last chunk
     for i in range(n_chunks):
         blk = data[i * chunk:(i + 1) * chunk]
         last = (i == n_chunks - 1)
-        out += aead_encrypt(key, _chunk_nonce(file_nonce, i, last), header, blk)
+        out += aead_encrypt(key, _chunk_nonce(file_nonce, i, last), header, blk, pset)
     return bytes(out)
 
 
-def stream_decrypt(key, blob, chunk_override=None):
+def stream_decrypt(key, blob, pset=DEFAULT_SET):
     if blob[:4] != STREAM_MAGIC or blob[4] != STREAM_VER:
         raise ValueError('bad header')
     chunk = struct.unpack('<I', blob[5:9])[0]
@@ -204,7 +210,7 @@ def stream_decrypt(key, blob, chunk_override=None):
             raise ValueError('truncated')
         last = len(piece) < step
         try:
-            out += aead_decrypt(key, _chunk_nonce(nf, i, last), header, piece)
+            out += aead_decrypt(key, _chunk_nonce(nf, i, last), header, piece, pset=pset)
         except ValueError:
             raise ValueError('authentication failed at chunk %d' % i)
         pos += step

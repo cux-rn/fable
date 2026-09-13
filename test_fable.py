@@ -3,7 +3,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from fable import *
 import fable
 
-def test_roundtrip():
+def test_roundtrip(pset='fable'):
     rng = random.Random(1)
     for L in [0, 1, 31, 32, 33, 63, 64, 65, 1000]:
         for AL in [0, 1, 32, 45]:
@@ -11,21 +11,22 @@ def test_roundtrip():
             n = bytes(rng.getrandbits(8) for _ in range(24))
             ad = bytes(rng.getrandbits(8) for _ in range(AL))
             m = bytes(rng.getrandbits(8) for _ in range(L))
-            c = aead_encrypt(k, n, ad, m)
+            c = aead_encrypt(k, n, ad, m, pset)
             assert len(c) == L + 32
-            assert aead_decrypt(k, n, ad, c) == m
+            assert aead_decrypt(k, n, ad, c, pset=pset) == m
+            assert c != aead_encrypt(k, n, ad, m, 'fable-f' if pset=='fable' else 'fable')
             # tamper: ciphertext bit, tag bit, AD, nonce, key
             for mut in range(len(c)):
                 if mut % 7: continue
                 bad = bytearray(c); bad[mut] ^= 1
-                try: aead_decrypt(k, n, ad, bytes(bad)); assert False
+                try: aead_decrypt(k, n, ad, bytes(bad), pset=pset); assert False
                 except ValueError: pass
             if ad:
-                try: aead_decrypt(k, n, ad[:-1] + bytes([ad[-1]^1]), c); assert False
+                try: aead_decrypt(k, n, ad[:-1] + bytes([ad[-1]^1]), c, pset=pset); assert False
                 except ValueError: pass
-            try: aead_decrypt(k, n[:-1]+bytes([n[-1]^1]), ad, c); assert False
+            try: aead_decrypt(k, n[:-1]+bytes([n[-1]^1]), ad, c, pset=pset); assert False
             except ValueError: pass
-    print('AEAD round-trip / tamper: OK')
+    print('AEAD round-trip / tamper [%s]: OK' % pset)
 
 def test_stream():
     rng = random.Random(2)
@@ -51,16 +52,19 @@ def test_stream():
 
 def test_vectors():
     k = bytes(range(32)); n = bytes(range(24))
-    vec = {}
-    for name, ad, m in [('empty', b'', b''), ('ad_only', b'AD', b''),
-                        ('short', b'', b'hello'), ('block', b'header', bytes(range(32))),
-                        ('two_blocks', b'', bytes(range(64)))]:
-        vec[name] = {'ad': ad.hex(), 'msg': m.hex(), 'ct_tag': aead_encrypt(k, n, ad, m).hex()}
+    vec = {'key': k.hex(), 'nonce': n.hex()}
+    for pset in ['fable', 'fable-f']:
+        vec[pset] = {}
+        for name, ad, m in [('empty', b'', b''), ('ad_only', b'AD', b''),
+                            ('short', b'', b'hello'), ('block', b'header', bytes(range(32))),
+                            ('two_blocks', b'', bytes(range(64)))]:
+            vec[pset][name] = {'ad': ad.hex(), 'msg': m.hex(), 'ct_tag': aead_encrypt(k, n, ad, m, pset).hex()}
     vec['hash256_empty'] = hash256(b'').hex()
     vec['hash256_abc'] = hash256(b'abc').hex()
     vec['permute12_zero'] = fable._bytes(permute([0]*16, 12)).hex()
+    vec['permute8_zero'] = fable._bytes(permute([0]*16, 8)).hex()
     print(json.dumps(vec, indent=1))
-    with open('/home/claude/fable/test_vectors_v0.1.json', 'w') as f:
+    with open(os.path.join(os.path.dirname(__file__), 'test_vectors_v0.3.json'), 'w') as f:
         json.dump(vec, f, indent=1)
 
 def avalanche(rounds, trials=2000, rot=ROT, seed=3):
@@ -86,10 +90,8 @@ def avalanche(rounds, trials=2000, rot=ROT, seed=3):
     return sum(ps)/len(ps), min(ps), max(ps), dev, ok
 
 if __name__ == '__main__':
-    test_roundtrip()
+    test_roundtrip('fable')
+    test_roundtrip('fable-f')
     test_stream()
     test_vectors()
-    for r in [1, 2, 3, 4]:
-        # fewer trials for speed; permute() with rounds<6 uses last r RCs
-        mean, mn, mx, dev, ok = avalanche(r, trials=300)
-        print('rounds=%d mean=%.3f min=%.3f max=%.3f maxdev=%.3f within±0.1=%.3f' % (r, mean, mn, mx, dev, ok))
+    pass

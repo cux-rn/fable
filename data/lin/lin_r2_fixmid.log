@@ -60,3 +60,4 @@
   k<=59: UNSAT (18.8s)
   k<=60: UNSAT (32.8s)
   k<=61: UNSAT (92.6s)
+terminated 03:15: fixed-middle search only yields trails of weight >= 62, not useful for the hull study

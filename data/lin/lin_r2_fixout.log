@@ -53,3 +53,5 @@
   k<=52: UNSAT (31.2s)
   k<=53: UNSAT (35.0s)
   k<=54: UNSAT (49.3s)
+  k<=55: UNSAT (96.0s)
+terminated 03:15: fixed-output search only yields trails of weight >= 55, not useful for the hull study

@@ -563,3 +563,23 @@ python sat/fable_lin.py perm --rounds 2 --rot 16,12,8,7 --kstart 18 --solver cad
 | 60 | 23745 | … 59:289, 60:15644 | 11374 / 12371 | −2^-44.78 | ×9.3（已收敛） |
 
 **判断**：2 轮的 hull 效应**显著**：同一掩码对下有上万条低权重轨迹，符号相关（负号占优），叠加后相关性比最优单轨迹高约 **2^3.2（9 倍）**，且在 wmax = 58 已收敛（≥ 60 的轨迹贡献 < 1%）。含义：(1) 用单轨迹权重换算的线性相关性上界在 2 轮以上要预留约 3 bit 的 hull 余量；(2) 由于 2 轮最优单轨迹 ≥ 19，即使叠加 3 bit，2 轮 hull 相关性也 ≤ 2^-16，6 轮/8 轮按拆分（1 + 2 + 2 + 1 / 2 + 2 + 2 + 2）仍远低于可利用水平（P_8：4 × 19 − 4 × 3 ≈ 2^-64 的保守估计，数据需求 2^128）；(3) 1 轮的 LSB 关系是孤立的（无 hull），与 ChaCha 的已知性质一致。
+
+---
+
+## 2026-09-14 — v0.4 后台长跑（§8-4b''、5c）与论文起草
+
+**规范**：`Fable-spec-v0.4.md`（纯文档修订，算法无改动）已提交。
+
+**后台长跑**（BelowNormal 优先级，48 小时上限，08:20 启动；每证一级更新下表并提交）：
+```
+python sat/fable_diff.py perm --rounds 2 --rot 16,12,8,7 --rate-in --kstart 39 --solver cadical153 --out data/diff/perm_r2_rateI_v04.json
+python sat/fable_diff.py perm --rounds 2 --rot 16,12,8,7 --kstart 31 --solver cadical153 --out data/diff/perm_r2_unc_v04.json
+python sat/fable_lin.py  perm --rounds 2 --rot 16,12,8,7 --kstart 19 --solver cadical153 --out data/lin/lin_r2_v04.json
+```
+日志：`data/diff/perm_r2_rateI_v04.log`、`data/diff/perm_r2_unc_v04.log`、`data/lin/lin_r2_v04.log`。目标：两个差分界各 +4（39→43、31→35），使 P_8 伪造拆分界从 2^-132 升到 2^-(43+3×35) = 2^-148（覆盖聚合效应）。
+
+| 时间 | 2 轮速率输入（差分） | 2 轮无约束（差分） | 2 轮线性 | P_8 拆分界 |
+|---|---|---|---|---|
+| 08:20 起点 | ≥ 39 | ≥ 31 | ≥ 19 | 2^-132 |
+
+**论文**：`paper/fable.tex`（IACR ToSC `iacrtrans` 类）、`paper/refs.bib`。逐节起草，每节经作者审阅后再写下一节；所有数字取自本日志。

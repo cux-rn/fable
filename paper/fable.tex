@@ -1,0 +1,124 @@
+% Fable: a 512-bit ARX permutation with built-in authentication, key commitment and chunked parallelism
+% IACR ToSC draft. Class: iacrtrans (https://github.com/Cryptosaurus/iacrtrans). Build: latexmk -pdf fable.tex
+\documentclass[journal=tosc,submission]{iacrtrans}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xspace}
+\usepackage{url}
+\usepackage{listings}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\newcommand{\Fable}{\textsf{Fable}\xspace}
+\newcommand{\FableP}{\textsf{Fable-P}\xspace}
+\newcommand{\FableF}{\textsf{Fable-f}\xspace}
+\newcommand{\FableAEAD}{\textsf{Fable-AEAD}\xspace}
+\newcommand{\FableStream}{\textsf{Fable-Stream}\xspace}
+\newcommand{\FableHash}{\textsf{Fable-Hash}\xspace}
+\newcommand{\ChaCha}{\textsf{ChaCha}\xspace}
+\newcommand{\PP}[1]{P_{#1}}
+\newcommand{\rotl}{\lll}
+\newcommand{\repo}{\texttt{ANALYSIS-LOG.md}\xspace}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{claim}{Claim}
+
+\title[Fable]{Fable: A ChaCha-Derived Permutation with Single-Pass Authenticated Encryption, Key Commitment and Chunk-Parallel Streaming}
+\author{Anonymous submission}
+\institute{--- \\ \email{---}}
+
+\keywords{ARX \and permutation-based cryptography \and keyed duplex \and authenticated encryption \and key commitment \and STREAM \and differential cryptanalysis \and SAT}
+
+\begin{abstract}
+We present \Fable, a family of symmetric primitives built on a single new component: \FableP, a 512-bit ARX permutation whose round is the \ChaCha double round with round constants injected into two state words. On top of \FableP we define a keyed-duplex authenticated cipher (\FableAEAD; 256-bit key, 192-bit nonce, 256-bit tag, rate $r=256$, capacity $c=256$), a chunked large-file mode (\FableStream, the STREAM construction with 64\,KiB chunks) and a sponge hash/XOF. Two parameter sets share everything but the number of data-phase rounds: \Fable uses $\PP{12}$ for initialisation/finalisation and $\PP{8}$ per data block, \FableF uses $\PP{12}/\PP{6}$; the parameter set is bound into the initial state, so the two are domain-separated.
+
+The design goals are (i) nonces long enough to be chosen at random, (ii) key commitment without an extra pass, obtained by taking the tag directly from the truncated output of the finalising permutation, (iii) authentication in the same pass as encryption, and (iv) chunk-level parallelism that maps eight independent chunks onto AVX2 lanes.
+
+We report a first-party analysis that is fully reproducible from the accompanying repository: avalanche statistics with $5\times10^5$ samples per round count; SAT-based (Lipmaa--Moriai) differential trail bounds, including the observation that every rotation-constant choice admits a probability-one differential through one quarter-round, and a rate-restricted model of the duplex data phase that yields a split bound of $2^{-132}$ on any forgery trail through $\PP{8}$; a differential-linear evaluation calibrated against the \ChaCha literature (best key recovery: 7.5 single rounds), giving empirical margins of $2.1\times$ for the \Fable data phase and $3.2\times$ for initialisation; exact linear-trail bounds and a linear-hull enumeration; rotational-XOR, slide and fixed-point checks of the round constants; a key-commitment reduction (commitment strength $\tau/2$ bits for a $\tau$-bit tag); and multi-user bounds for the STREAM composition. An AVX2 implementation encrypts 1\,GiB at 2.00\,GB/s (2.44 cycles/byte) single-threaded for \Fable and 2.53\,GB/s for \FableF, on par with or faster than OpenSSL's ChaCha20-Poly1305 on the same machine, and scales to 11.5\,GB/s on eight cores. \Fable is a research draft: it has received no third-party analysis and must not be used to protect real data.
+\end{abstract}
+
+\begin{document}
+\maketitle
+
+% =====================================================================
+\section{Introduction}
+\label{sec:intro}
+
+Authenticated encryption in deployed protocols is dominated by two families: AES-GCM, which depends on hardware support for the block cipher and the field multiplication, and ChaCha20-Poly1305~\cite{RFC8439}, which runs on any CPU but pays for authentication with a second pass (Poly1305) over the data and inherits a 96-bit nonce that cannot be chosen at random. Neither is key-committing~\cite{BH22}: for both, an adversary can craft a single ciphertext that decrypts correctly under two different keys, a property that has led to concrete attacks on message franking, envelope encryption and abuse-reporting systems. Permutation-based designs such as Ascon~\cite{Ascon21} and NORX~\cite{NORX14} solve the ``single pass'' part of the problem with the keyed duplex~\cite{BDPV11}, but they were optimised for lightweight or 64-bit-word platforms respectively, and the commitment question was not a design goal.
+
+\Fable is an attempt to combine, in one primitive, the properties we believe a general-purpose file and stream encryption tool needs today:
+
+\begin{itemize}
+\item \textbf{A nonce that can be random.} \FableAEAD takes a 192-bit nonce. With a 152-bit random file nonce, \FableStream stays below a $2^{-73}$ collision probability for $2^{40}$ files under one key, and the caller may alternatively use a structured (counter) nonce with zero collision term (\S\ref{sec:stream}).
+\item \textbf{Key commitment for free.} The tag is the 256-bit rate part of $\PP{12}(X)$, where $X$ is the complete internal state before finalisation---a state that contains the key (injected into the capacity), the nonce, the associated data, the message and the parameter-set identifier. We prove (\S\ref{sec:commitment}) that any CMT-4 attack reduces to a collision on a truncated permutation, so a $\tau$-bit tag commits with $\tau/2$ bits of security: 128 bits for the default 256-bit tag.
+\item \textbf{Authentication in the same pass.} \FableAEAD is a keyed duplex with $r=c=256$: every 32-byte block costs one call of the data-phase permutation and nothing else. There is no second pass, no polynomial MAC, and the mode inherits the multi-user bounds of the keyed duplex~\cite{JLM14,DMV17} (\S\ref{sec:mu}).
+\item \textbf{Chunk-level parallelism.} \FableStream applies the STREAM construction~\cite{HRRV15} to 64\,KiB chunks. Chunks are independent AEAD instances, so eight of them are processed simultaneously in the eight 32-bit lanes of an AVX2 register file, with the sixteen state words kept in transposed layout for the whole AEAD; decryption is online and truncation, reordering and cross-file splicing are rejected by the STREAM reduction.
+\end{itemize}
+
+\paragraph{Why a new permutation.}
+The permutation \FableP is deliberately conservative: its round function is exactly the \ChaCha double round (column step followed by diagonal step, quarter-round rotations $(16,12,8,7)$)~\cite{Bernstein08chacha}, so that fifteen years of differential-linear cryptanalysis of \ChaCha~\cite{AFKMR08,BLT20,BBCDFLNT22,CS21,DGSS22,DGM23,WLHL23,Dey24,SDSM25,FT25,FT25b} transfers directly. The one structural change is required by the change of use: \ChaCha is a PRF whose fixed input constants break symmetry, whereas a sponge permutation receives attacker-influenced input in every word and must break symmetry \emph{inside} the round. \FableP therefore XORs a round constant into two words, $S[0]$ and $S[5]$, chosen so that they lie in different columns, different rows and on the same diagonal. We show in \S\ref{sec:constants} that without the constants the ``four identical columns'' subspace of $2^{128}$ states is invariant under every round, and that the constants leave that subspace in every one of the twelve rounds.
+
+\paragraph{Security argument.}
+ARX permutations have no provable active-S-box bound; \FableP, like \ChaCha, even has probability-one differentials through a single quarter-round (for \emph{every} choice of rotation constants, \S\ref{sec:diff}). We therefore make no ``no characteristic above $2^{-128}$ in $n$ rounds'' claim. Instead the round counts are set by an empirical margin against the strongest published attack family on the same round function: with key recovery on 7.5 \ChaCha single rounds as the yardstick, the \Fable data phase ($\PP{8}$ = 16 single rounds) has a $2.1\times$ margin, initialisation ($\PP{12}$ = 24 single rounds) $3.2\times$, and \FableF ($\PP{6}$ = 12 single rounds) $1.6\times$, the margin of ChaCha12 as used in Adiantum~\cite{Adiantum18}. This is the same kind of argument that underlies ChaCha20 itself~\cite{Aumasson20}. Where exact statements are possible we make them: SAT-proven trail bounds, an exact key-commitment reduction, and mode-level bounds in the ideal-permutation model.
+
+\paragraph{Contributions.}
+\begin{enumerate}
+\item The specification of \FableP, \FableAEAD, \FableStream and \FableHash with two domain-separated parameter sets and test vectors (\S\ref{sec:spec}).
+\item A design rationale that records, for each choice, the experiment that motivated it (\S\ref{sec:rationale}).
+\item A reproducible first-party analysis (\S\ref{sec:security}): avalanche with $5\times10^5$ states per round count; SAT differential bounds in the unconstrained model (1 round: $2^{-2}$ exact; 2 rounds: $\leq 2^{-31}$) and in the rate-restricted duplex model (1 round: $2^{-22}$ exact; 2 rounds: $\leq 2^{-39}$; no internal collision within half a round), combined into a split bound of $2^{-132}$ for any forgery trail through $\PP{8}$ and $2^{-101}$ through $\PP{6}$; a rotation-constant screening over all $32^4$ choices showing that single-quarter-round and one-round differential metrics cannot separate them; a differential-linear evaluation with $2^{22}$ samples per bit pair showing that the round constants do not change the bias envelope relative to the \ChaCha round structure; exact linear-trail bounds (1 round $2^{-1}$, 2 rounds $\leq 2^{-19}$) and a hull enumeration (no hull effect in 1 round, a factor $\approx 9$ in 2 rounds); rotational-XOR bounds ($\leq 2^{-419}$ for $\PP{6}$); slide and fixed-point checks; the key-commitment reduction; and multi-user STREAM bounds.
+\item Portable C and AVX2 implementations, byte-exact against the Python reference, with throughput measurements against OpenSSL on the same machine (\S\ref{sec:impl}).
+\end{enumerate}
+
+\paragraph{Status.}
+\Fable is a research draft (specification v0.4). Every number in this paper is taken from the analysis log of the public repository, each with the command that regenerates it and the raw data file it was computed from; the log also lists what has \emph{not} been done (\S\ref{sec:conclusion}). Until independent cryptanalysis has been published, \Fable must not be used to protect real data.
+
+% =====================================================================
+\section{Specification}
+\label{sec:spec}
+% TODO (section 2): permutation, AEAD, Stream, Hash, parameter sets, test vectors -> repository.
+
+% =====================================================================
+\section{Design Rationale}
+\label{sec:rationale}
+% TODO (section 3)
+\subsection{Round constants and the column-symmetric subspace}
+\label{sec:constants}
+
+% =====================================================================
+\section{Security Analysis}
+\label{sec:security}
+% TODO (section 4)
+\subsection{Differential trails}
+\label{sec:diff}
+\subsection{Key commitment}
+\label{sec:commitment}
+\subsection{Multi-user and STREAM bounds}
+\label{sec:mu}
+\subsection{Fable-Stream nonce}
+\label{sec:stream}
+
+% =====================================================================
+\section{Implementation and Performance}
+\label{sec:impl}
+% TODO (section 5)
+
+% =====================================================================
+\section{Conclusion and Open Problems}
+\label{sec:conclusion}
+% TODO (section 6)
+
+\bibliographystyle{alpha}
+\bibliography{refs}
+
+\appendix
+\section{Round constants}
+% TODO
+\section{Test vectors}
+% TODO
+\section{SAT models}
+% TODO
+
+\end{document}

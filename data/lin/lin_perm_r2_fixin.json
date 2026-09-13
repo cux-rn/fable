@@ -1,0 +1,373 @@
+{
+ "target": "perm",
+ "rounds": 2,
+ "half": false,
+ "rate_io": false,
+ "rot": [
+  16,
+  12,
+  8,
+  7
+ ],
+ "fixed_input_from": "data/lin/lin_perm_r1_rot16_12_8_7.json",
+ "lower_bound_weight_given_input": 48,
+ "best_trail_weight": 48,
+ "best_trail": {
+  "trail": [
+   [
+    "in",
+    [
+     "00000001",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000001",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000"
+    ]
+   ],
+   [
+    "r1_col",
+    [
+     "00000001",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000080",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000001",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000"
+    ]
+   ],
+   [
+    "r1_out",
+    [
+     "00000001",
+     "00000000",
+     "00000001",
+     "00000000",
+     "04000000",
+     "00080080",
+     "00000000",
+     "00000000",
+     "00000001",
+     "000800c0",
+     "00001000",
+     "00000000",
+     "00000000",
+     "00000101",
+     "00000080",
+     "00000001"
+    ]
+   ],
+   [
+    "r2_col",
+    [
+     "00000000",
+     "01080181",
+     "00801081",
+     "00010001",
+     "00082080",
+     "0400c0c0",
+     "00086080",
+     "00000080",
+     "06001041",
+     "80080181",
+     "000000c0",
+     "00000001",
+     "04000100",
+     "08008001",
+     "80101001",
+     "01000000"
+    ]
+   ],
+   [
+    "r2_out",
+    [
+     "010001c0",
+     "07080400",
+     "8ac188a1",
+     "50141991",
+     "0c80000d",
+     "c6002006",
+     "08080c80",
+     "82644604",
+     "0f84c88c",
+     "da182100",
+     "0b8cc040",
+     "01905119",
+     "01844001",
+     "07986186",
+     "cd80a010",
+     "04010000"
+    ]
+   ]
+  ],
+  "weight_check": 48
+ },
+ "log": [
+  {
+   "k": 0,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 1,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 2,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 3,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 4,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 5,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 6,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 7,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 8,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 9,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 10,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 11,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 12,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 13,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 14,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 15,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 16,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 17,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 18,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 19,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 20,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 21,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 22,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 23,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 24,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 25,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 26,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 27,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 28,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 29,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 30,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 31,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 32,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 33,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 34,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 35,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 36,
+   "result": false,
+   "seconds": 0.01
+  },
+  {
+   "k": 37,
+   "result": false,
+   "seconds": 0.01
+  },
+  {
+   "k": 38,
+   "result": false,
+   "seconds": 0.01
+  },
+  {
+   "k": 39,
+   "result": false,
+   "seconds": 0.01
+  },
+  {
+   "k": 40,
+   "result": false,
+   "seconds": 0.01
+  },
+  {
+   "k": 41,
+   "result": false,
+   "seconds": 0.01
+  },
+  {
+   "k": 42,
+   "result": false,
+   "seconds": 0.03
+  },
+  {
+   "k": 43,
+   "result": false,
+   "seconds": 0.03
+  },
+  {
+   "k": 44,
+   "result": false,
+   "seconds": 0.05
+  },
+  {
+   "k": 45,
+   "result": false,
+   "seconds": 0.08
+  },
+  {
+   "k": 46,
+   "result": false,
+   "seconds": 0.06
+  },
+  {
+   "k": 47,
+   "result": false,
+   "seconds": 0.19
+  },
+  {
+   "k": 48,
+   "result": true,
+   "seconds": 0.01
+  }
+ ],
+ "note": "input mask fixed; weight is an upper bound on the unconstrained optimum"
+}

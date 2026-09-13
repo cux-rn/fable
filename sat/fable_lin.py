@@ -147,14 +147,14 @@ def decode(m, model):
             'weight_check': sum(int(val(w)) for w in m.weights)}
 
 
-def search(m, kmax, solver, timeout=None):
+def search(m, kmax, solver, timeout=None, kstart=0):
     inp = [l for w in m.snapshots[0][1] for l in w]
     s = Solver(name=solver, bootstrap_with=m.clauses)
     s.add_clause(inp)                                   # nonzero input mask
     tot = ITotalizer(lits=m.weights, ubound=kmax, top_id=m.nv)
     s.append_formula(tot.cnf.clauses)
-    log, lb, best = [], 0, None
-    for k in range(kmax + 1):
+    log, lb, best = [], kstart, None
+    for k in range(kstart, kmax + 1):
         t0 = time.time()
         if timeout:
             timer = threading.Timer(timeout, s.interrupt); timer.start()
@@ -184,6 +184,7 @@ def main():
     ap.add_argument('--timeout', type=float, default=None)
     ap.add_argument('--solver', default=None)
     ap.add_argument('--out', default=None)
+    ap.add_argument('--kstart', type=int, default=0, help='start at this weight (already-proven lower bound)')
     a = ap.parse_args()
     rot = tuple(int(x) for x in a.rot.split(','))
     solver = a.solver or ('glucose4' if a.timeout else 'cadical153')
@@ -196,7 +197,7 @@ def main():
         if a.rate_io:
             restrict_rate_io(m); name += '_rateIO'
     print('%s: vars=%d clauses=%d weight_lits=%d' % (name, m.nv, len(m.clauses), len(m.weights)), flush=True)
-    lb, best, log = search(m, kmax, solver, a.timeout)
+    lb, best, log = search(m, kmax, solver, a.timeout, a.kstart)
     ub = best['weight_check'] if best else None
     res = {'target': a.target, 'rounds': a.rounds if a.target == 'perm' else None, 'half': a.half,
            'rate_io': a.rate_io, 'rot': rot, 'solver': solver, 'lower_bound_weight': lb,

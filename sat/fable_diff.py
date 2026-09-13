@@ -226,6 +226,8 @@ def main():
     ap.add_argument('--cap-out-zero', action='store_true', help='output difference in S[8..15] must be 0')
     ap.add_argument('--rate-out-nonzero', action='store_true', help='output difference in S[0..7] must be nonzero')
     ap.add_argument('--half', action='store_true', help='append one extra column step (rounds + 0.5)')
+    ap.add_argument('--kstart', type=int, default=0,
+                    help='start the incremental search at this weight (an already-proven lower bound)')
     a = ap.parse_args()
     rot = tuple(int(x) for x in a.rot.split(','))
     solver = a.solver or ('glucose4' if a.timeout else 'cadical153')
@@ -240,6 +242,7 @@ def main():
             name += '_rate' + ('I' if a.rate_in else '') + ('C0' if a.cap_out_zero else '') + ('O' if a.rate_out_nonzero else '')
     print('%s: vars=%d clauses=%d weight_lits=%d' % (name, m.nv, len(m.clauses), len(m.weights)), flush=True)
     se = Searcher(m, kmax, solver)
+    se.lb = a.kstart
     se.run(a.timeout, a.total)
     res = {'target': a.target, 'rounds': a.rounds if a.target == 'perm' else None, 'rot': rot,
            'solver': solver, 'half': a.half,

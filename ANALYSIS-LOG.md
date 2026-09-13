@@ -387,3 +387,20 @@ python tools/bench_chacha.py 1024
 | OpenSSL 3.5.4 `speed -evp`（Git 自带 mingw 版，16 KiB 块） | — | 1.17 | — |
 
 **判断**：Fable-Stream 的 8 路 AVX2 实现单线程 1.97 GB/s、1.85 cpb，**比同机 OpenSSL 的 ChaCha20-Poly1305 快约 30%**，且已含认证；与 v0.1 阶段 5 的置换核心 1.6 cpb 相比，转置、AD、初始化/最终化（每 64 KiB 分块两次 P_12 + 一次 P_6，约 0.2%）和标量末块的开销合计约 15%。规范 §7.1"与 ChaCha20-Poly1305 同量级（±30%）"的预期成立，且偏向有利的一侧。pynacl 自带的 libsodium 明显没有启用 AVX2 路径（0.39 GB/s），不作为参考。标量 8.3 cpb 高于阶段 5 的置换 6.9 cpb，差额来自每块的字节加载/存储和 AEAD 逻辑。多线程未测（分块独立，理论线性扩展）。
+
+---
+
+## 2026-09-14 — v0.3 阶段 1：参数集切换（§8-9d）
+
+**变更**：`c/fable_aead.h/.c` 新增 `FABLE_SET_DEFAULT`（P_12/P_8，IV1 = 0x012020C8）与 `FABLE_SET_F`（P_12/P_6，IV1 = 0x012020C6），`fable_aead_encrypt_set / fable_aead_decrypt_set` 带参数集参数，原 `fable_aead_encrypt/decrypt` 成为默认集包装；`fable_set_light_rounds()`、`fable_set_iv1()` 暴露参数集常量。`c/fable_stream_avx2.h/.c` 同样加 `_set` 版本（`fable_stream_encrypt_{x8,scalar}_set`），并新增解密 `fable_stream_decrypt_{x8,scalar}_set`（8 路 AVX2 解密：密文块转置后作为新的速率，明文 = 旧速率 ⊕ 密文；尾块用密钥流异或后再以 10* 填充回注；8 个标签逐通道恒定时间比较，任一失败即清零输出并返回 −1；头部/截断/缺末块也返回 −1）。置换、常量、模式代码无改动。
+
+**校验**（`tests/check_c_vectors.py`、`tests/check_stream_avx2.py`，均改为两参数集都跑）：
+```
+bash c/build.sh && python tests/check_c_vectors.py && python tests/check_stream_avx2.py
+```
+- `permute12_zero`、`permute8_zero` 与 `test_vectors_v0.3.json` 一致。
+- 两参数集各 5 组 AEAD 向量：C 加密 = 向量 = Python；解密还原；篡改检测；**Fable-f 的 5 组向量与 v0.1 向量逐字节相同**（`test_vectors_v0.1.json` 内容 = v0.3 的 `fable-f` 节）。
+- 默认包装 = SET_DEFAULT；hash256 两组向量一致；1～12 轮置换与随机旋转量交叉校验一致；两参数集各 36 组随机长度 AEAD 与 Python 一致。
+- Stream：两参数集 × 9 种分块/长度组合，AVX2 与标量加密 = Python；AVX2 与标量解密还原明文；Python 能解 C 输出；中间分块翻 1 bit、末标签翻 1 bit、截断 40 字节、用另一参数集解密，全部正确拒绝。`RESULT: ALL OK` × 2。
+
+**判断**：参数集切换在 C 端与 Python 端语义一致，两参数集通过 IV1 域分离（用错参数集解密必失败），Fable-f 与 v0.1 完全兼容。

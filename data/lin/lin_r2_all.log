@@ -15,3 +15,4 @@ lin_perm_r2_rot16_12_8_7: vars=10688 clauses=43904 weight_lits=1984
   k<=13: UNSAT (398.7s)
   k<=14: UNSAT (1024.4s)
   k<=15: UNSAT (1207.6s)
+  k<=16: UNSAT (2438.7s)

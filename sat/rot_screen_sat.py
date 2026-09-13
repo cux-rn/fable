@@ -31,7 +31,14 @@ def work(rot):
     se = Searcher(m, ARGS['kmax'], solver)
     import io, contextlib
     with contextlib.redirect_stdout(io.StringIO()):
-        se.run(ARGS['timeout'], ARGS['total'])
+        stop = False
+        for t in ARGS['thresholds']:            # cheap cascade: is there a trail of weight <= t ?
+            res = se.solve_k(t, ARGS['timeout'])
+            if res is not False:                # SAT (trail found, ub set) or timeout -> stop here
+                stop = True
+                break
+        if not stop and not ARGS['noexact']:
+            se.run(ARGS['timeout'], ARGS['total'])   # continues upward from the proven lower bound
     return (*rot, se.lb, se.ub if se.ub is not None else '', int(se.ub is not None and se.ub == se.lb),
             round(time.time() - t0, 2))
 
@@ -47,9 +54,13 @@ def main():
     ap.add_argument('--timeout', type=float, default=None)
     ap.add_argument('--total', type=float, default=None)
     ap.add_argument('--out', required=True)
+    ap.add_argument('--thresholds', default='', help='comma list, e.g. 6,9,11: ask "weight <= t?" in order, '
+                    'stop at the first SAT; combos surviving all thresholds continue to the exact search')
+    ap.add_argument('--noexact', action='store_true', help='thresholds only, no exact search afterwards')
     a = ap.parse_args()
     ARGS.update(metric=a.metric, kmax=a.kmax or {'q': 40, 'r1': 64, 'r1c': 96, 'r2': 128}[a.metric],
-                timeout=a.timeout, total=a.total)
+                timeout=a.timeout, total=a.total, noexact=a.noexact,
+                thresholds=[int(x) for x in a.thresholds.split(',') if x])
     if a.all:
         combos = list(itertools.product(range(32), repeat=4))
     else:

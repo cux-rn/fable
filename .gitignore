@@ -7,3 +7,5 @@ __pycache__/
 *.exp
 *.lib
 build/
+data/diff/screen_q_all.csv
+data/diff/screen_r1_all.csv

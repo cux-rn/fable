@@ -23,3 +23,4 @@ perm_r2_rot16_12_8_7: vars=6592 clauses=36224 weight_lits=1984
   k<=21: UNSAT (707.2s)
   k<=22: UNSAT (604.6s)
   k<=23: UNSAT (541.6s)
+  k<=24: UNSAT (1359.4s)

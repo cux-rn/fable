@@ -187,6 +187,32 @@ static long long stream_decrypt(uint8_t *out, int set, const uint8_t key[32], co
     return (long long)plen;
 }
 
+/* Range helpers for multi-threaded callers: process full (non-final) chunks [c0, c1).
+ * `data` / `body` / `out` point at chunk 0 of the whole file (not at the range). */
+size_t fable_stream_encrypt_range_x8(uint8_t *body, int set, const uint8_t key[32], const uint8_t nf[19],
+                                     const uint8_t *data, uint32_t chunk, size_t c0, size_t c1) {
+    uint8_t hdr[HDR]; make_header(hdr, nf, chunk);
+    size_t i = c0;
+    for (; i + 8 <= c1; i += 8) encrypt8(body, set, key, hdr, nf, data, chunk, (uint32_t)i);
+    for (; i < c1; i++) {
+        uint8_t nonce[24]; make_nonce(nonce, nf, (uint32_t)i, 0);
+        fable_aead_encrypt_set(body + i * ((size_t)chunk + 32), set, key, nonce, hdr, HDR, data + i * (size_t)chunk, chunk);
+    }
+    return c1 - c0;
+}
+long long fable_stream_decrypt_range_x8(uint8_t *out, int set, const uint8_t key[32], const uint8_t nf[19],
+                                        const uint8_t *body, uint32_t chunk, size_t c0, size_t c1) {
+    uint8_t hdr[HDR]; make_header(hdr, nf, chunk);
+    int bad = 0;
+    size_t i = c0;
+    for (; i + 8 <= c1; i += 8) bad |= decrypt8(out, set, key, hdr, nf, body, chunk, (uint32_t)i);
+    for (; i < c1; i++) {
+        uint8_t nonce[24]; make_nonce(nonce, nf, (uint32_t)i, 0);
+        bad |= fable_aead_decrypt_set(out + i * (size_t)chunk, set, key, nonce, hdr, HDR, body + i * ((size_t)chunk + 32), (size_t)chunk + 32) != 0;
+    }
+    return bad ? -1 : (long long)(c1 - c0);
+}
+
 size_t fable_stream_encrypt_x8_set(uint8_t *out, int set, const uint8_t key[32], const uint8_t nf[19],
                                    const uint8_t *data, size_t len, uint32_t chunk) {
     return stream_encrypt(out, set, key, nf, data, len, chunk, 1);

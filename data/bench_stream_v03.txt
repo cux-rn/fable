@@ -1,0 +1,18 @@
+input 1024 MiB, chunk 65536, best of 3, core clock ~4.89 GHz (dependent-add calibration, used for cpb)
+set        op       path     threads   seconds      GB/s    GiB/s     cpb
+fable      encrypt  scalar         1     2.237     0.480     0.447    10.18
+fable      decrypt  scalar         1     2.116     0.508     0.473     9.62
+fable      encrypt  avx2x8         1     0.536     2.003     1.866     2.44
+fable      decrypt  avx2x8         1     0.525     2.045     1.905     2.39  (plaintext verified)
+fable      encrypt  avx2x8         4     0.164     6.541     6.092        -
+fable      decrypt  avx2x8         4     0.170     6.313     5.879        -  (plaintext verified)
+fable      encrypt  avx2x8         8     0.093    11.509    10.719        -
+fable      decrypt  avx2x8         8     0.106    10.174     9.475        -  (plaintext verified)
+fable-f    encrypt  scalar         1     1.744     0.616     0.573     7.94
+fable-f    decrypt  scalar         1     1.543     0.696     0.648     7.02
+fable-f    encrypt  avx2x8         1     0.424     2.530     2.357     1.93
+fable-f    decrypt  avx2x8         1     0.415     2.589     2.411     1.89  (plaintext verified)
+fable-f    encrypt  avx2x8         4     0.130     8.238     7.673        -
+fable-f    decrypt  avx2x8         4     0.133     8.090     7.534        -  (plaintext verified)
+fable-f    encrypt  avx2x8         8     0.074    14.518    13.521        -
+fable-f    decrypt  avx2x8         8     0.084    12.848    11.966        -  (plaintext verified)

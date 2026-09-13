@@ -404,3 +404,45 @@ bash c/build.sh && python tests/check_c_vectors.py && python tests/check_stream_
 - Stream：两参数集 × 9 种分块/长度组合，AVX2 与标量加密 = Python；AVX2 与标量解密还原明文；Python 能解 C 输出；中间分块翻 1 bit、末标签翻 1 bit、截断 40 字节、用另一参数集解密，全部正确拒绝。`RESULT: ALL OK` × 2。
 
 **判断**：参数集切换在 C 端与 Python 端语义一致，两参数集通过 IV1 域分离（用错参数集解密必失败），Fable-f 与 v0.1 完全兼容。
+
+---
+
+## 2026-09-14 — v0.3 阶段 2：默认参数集吞吐复测 + 解密 AVX2 + 多线程（§8-9b/9c）
+
+**工具**：`c/bench_stream.c`（重写：两参数集 × 加密/解密 × 标量/AVX2 ×8 × 1/4/8 线程；主线程固定 CPU0，工作线程逐个固定到不同 P 核逻辑 0,2,…,14；多线程用 `fable_stream_encrypt_range_x8 / decrypt_range_x8` 按分块区间切分，末尾不足 8 的分块与末块由主线程标量处理；核心时钟用相关加法链现场校准）。对照：`tools/bench_chacha.py`、`openssl speed`。原始输出：`data/bench_stream_v03.txt`、`data/bench_chacha_v03.txt`、`data/bench_openssl_speed_v03.txt`。
+
+**复现**：
+```
+clang -O3 -std=c11 -mavx2 c/bench_stream.c c/fable_stream_avx2.c c/fable_p_avx2.c c/fable_p.c c/fable_aead.c -o build/bench_stream.exe
+./build/bench_stream.exe 1024 65536 3 1,4,8
+python tools/bench_chacha.py 1024 ; openssl speed -evp chacha20-poly1305 -seconds 2
+```
+
+**结果**（1 GiB，64 KiB 分块，Raptor Lake，核心时钟校准 4.89 GHz，机器另有 3 个 BelowNormal 单线程求解在跑）：
+
+| 参数集 | 操作 | 路径 | 线程 | GB/s | cpb | 相对单线程 |
+|---|---|---|---|---|---|---|
+| **Fable (P_8)** | 加密 | 标量 | 1 | 0.48 | 10.2 | — |
+| Fable | 解密 | 标量 | 1 | 0.51 | 9.6 | — |
+| **Fable** | **加密** | **AVX2 ×8** | **1** | **2.00** | **2.44** | 1× |
+| Fable | 解密 | AVX2 ×8 | 1 | 2.05 | 2.39 | — |
+| Fable | 加密 | AVX2 ×8 | 4 | 6.54 | — | 3.3× |
+| Fable | 解密 | AVX2 ×8 | 4 | 6.31 | — | 3.1× |
+| Fable | 加密 | AVX2 ×8 | 8 | 11.5 | — | 5.7× |
+| Fable | 解密 | AVX2 ×8 | 8 | 10.2 | — | 5.0× |
+| Fable-f (P_6) | 加密 | 标量 | 1 | 0.62 | 7.9 | — |
+| **Fable-f** | **加密** | **AVX2 ×8** | **1** | **2.53** | **1.93** | 1× |
+| Fable-f | 解密 | AVX2 ×8 | 1 | 2.59 | 1.89 | — |
+| Fable-f | 加密 | AVX2 ×8 | 4 | 8.24 | — | 3.3× |
+| Fable-f | 加密 | AVX2 ×8 | 8 | 14.5 | — | 5.7× |
+| ChaCha20-Poly1305，OpenSSL 3.5（cryptography 48，1 次调用 1 GiB，未绑核） | 加密 | — | 1 | 1.81 | — | — |
+| 同上，64 KiB 分块循环 | 加密 | — | 1 | 2.27 | — | — |
+| OpenSSL 3.5.4 `speed -evp` 16 KiB 块 | — | — | 1 | 1.81 | — | — |
+| libsodium（pynacl 内置，无 AVX2 路径） | 加密 | — | 1 | 0.69 | — | — |
+
+**判断**：
+- **默认参数集 Fable (P_8) 单线程 AVX2 ×8：2.00 GB/s、2.44 cpb**，与同机 OpenSSL ChaCha20-Poly1305（1.8～2.3 GB/s）**持平**，符合 §7.1 "按运算量线性外推约 1.5 GB/s、与 ChaCha20-Poly1305 持平"的预期（实际略好于外推）。Fable-f 2.53 GB/s、1.93 cpb，比 OpenSSL 快 10%～40%。P_8 相对 P_6 的代价：吞吐 −21%（理论运算量 +33%，因初始化/最终化 P_12 和转置开销被摊薄，实际差距小于理论值）。
+- v0.2 阶段 5 的 fable-f 1.97 GB/s 是在核心时钟 3.65 GHz（重负载）下测得，cpb 1.85 与本次 1.93 一致；本次绝对值更高是频率差异。第一次复测时因主线程未绑核被调度到 E 核，数字低一半（已修正为固定 P 核）。
+- **解密 AVX2** 与加密同速（2.39 vs 2.44 cpb），标签逐通道恒定时间比较，1 GiB 明文逐字节验证。
+- **多线程扩展**：4 线程 3.1～3.3×，8 线程 5.0～5.7×（8 个 P 核全占，HT 未用，E 核未用）。亚线性主要来自全核负载时的睿频下降与内存带宽（8 线程 11.5 GB/s 读 + 11.5 GB/s 写已接近双通道 DDR 的实际可用带宽的一半），不是算法瓶颈；分块独立，理论上线性。
+- 与 §0 参数集表一致：默认集用 2.1× 余量换取约 20% 吞吐，仍不慢于 ChaCha20-Poly1305。

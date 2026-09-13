@@ -1,0 +1,5 @@
+cryptography 48.0.0 (OpenSSL) 1 call             0.592 s   1.814 GB/s   1.690 GiB/s
+cryptography (OpenSSL) 64 KiB chunks             0.474 s   2.266 GB/s   2.111 GiB/s
+pynacl 1.6.2 (libsodium) 1 call                  1.550 s   0.693 GB/s   0.645 GiB/s
+pynacl (libsodium) 64 KiB chunks                 1.502 s   0.715 GB/s   0.666 GiB/s
+pynacl unavailable: module 'nacl.bindings' has no attribute 'crypto_stream_chacha20_xor'

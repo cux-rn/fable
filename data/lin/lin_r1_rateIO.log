@@ -24,3 +24,4 @@ lin_perm_r1_rot16_12_8_7_rateIO: vars=5600 clauses=22464 weight_lits=992
   k<=22: UNSAT (803.8s)
   k<=23: UNSAT (809.3s)
   k<=24: UNSAT (1388.9s)
+  k<=25: UNSAT (2438.2s)

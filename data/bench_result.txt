@@ -1,0 +1,10 @@
+TSC ~2.42 GHz, core clock ~3.01 GHz (dependent-add chain), iters=2000000 (best of 5)
+cycles below are CORE cycles (TSC ticks x 1.24); cpb = cycles / 32 bytes per P_6 call
+variant                 cycles/call        cpb    ns/call
+scalar P_6                    221.6       6.92       73.7
+scalar P_12                   423.9      13.25      141.0
+avx2 x8 P_6 +transp           606.8       2.37      201.8   (8 states; per-state 75.9 cycles)
+avx2 x8 P_12 +transp          992.0       3.88      329.8   (8 states; per-state 124.0 cycles)
+avx2 x8 P_6 core              404.0       1.58      134.3   (8 states; per-state 50.5 cycles)
+avx2 x8 P_12 core             804.8       3.14      267.6   (8 states; per-state 100.6 cycles)
+sink=6a95ef4f

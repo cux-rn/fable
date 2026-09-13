@@ -1,0 +1,36 @@
+== 1. RC table ==
+  RC[ 0] p= 2 frac(ln p)=0.6931471805 -> b17217f7  spec=b17217f7  hw=19 OK
+  RC[ 1] p= 3 frac(ln p)=0.0986122886 -> 193ea7aa  spec=193ea7aa  hw=17 OK
+  RC[ 2] p= 5 frac(ln p)=0.6094379124 -> 9c041f7e  spec=9c041f7e  hw=16 OK
+  RC[ 3] p= 7 frac(ln p)=0.9459101490 -> f2272ae3  spec=f2272ae3  hw=17 OK
+  RC[ 4] p=11 frac(ln p)=0.3978952727 -> 65dc76ef  spec=65dc76ef  hw=21 OK
+  RC[ 5] p=13 frac(ln p)=0.5649493574 -> 90a08566  spec=90a08566  hw=11 OK
+  RC[ 6] p=17 frac(ln p)=0.8332133440 -> d54d783f  spec=d54d783f  hw=19 OK
+  RC[ 7] p=19 frac(ln p)=0.9444389791 -> f1c6c0c0  spec=f1c6c0c0  hw=13 OK
+  RC[ 8] p=23 frac(ln p)=0.1354942159 -> 22afbfba  spec=22afbfba  hw=20 OK
+  RC[ 9] p=29 frac(ln p)=0.3672958299 -> 5e071979  spec=5e071979  hw=16 OK
+  RC[10] p=31 frac(ln p)=0.4339872044 -> 6f19c912  spec=6f19c912  hw=15 OK
+  RC[11] p=37 frac(ln p)=0.6109179126 -> 9c651dc7  spec=9c651dc7  hw=17 OK
+  recomputed from ln(p): ALL MATCH
+  distinct: True
+  RC[i] == rotl(RC[j],16) pairs (would make S[0] and S[5] injections collide): none
+  min pairwise Hamming distance: 9
+  RC[i] ^ rotl(RC[i],16) (net constant on the diagonal Q(0,5,10,15)) all nonzero: True
+== 2. Constant-free round: invariants that constants must break ==
+  zero state fixed under 12 const-free rounds: True
+  all-ones after 1 const-free round symmetric: True (fixed: False )
+  column-symmetric class invariant under const-free rounds (1..12): True
+  row-symmetric class invariant under const-free rounds: False
+  all-words-equal class invariant under const-free rounds: False
+== 3/4. With constants: symmetric inputs, 1..12 rounds, prefix and suffix conventions ==
+  structured inputs -> symmetric or fixed outputs found: 0
+  10^4 random column-symmetric states x 12 rounds: intermediate outputs still column-symmetric: 0
+== 5. Slide / self-similarity of the constant sequence ==
+  equal RC pairs (classic slide requires these): none
+  rotational coincidences RC[i]==rotl(RC[j],k): none
+  P_6 constants RC[6..11] periodic / self-similar with shift d: none
+  RC[6..11] equals another 6-window of RC: none
+  consecutive XOR differences all distinct (no affine slide): True
+== 6. Fixed-point / short-cycle sampling ==
+  structured states that are fixed points of some P_n (prefix or suffix), n=1..12: 0
+  random 1-round fixed points among 2^18 samples: 0 (expected ~0 for a random permutation)

@@ -86,7 +86,9 @@ def build_q(rot):
     return m
 
 
-def build_perm(rounds, rot):
+def build_perm(rounds, rot, extra_column=False):
+    """`rounds` full rounds; with extra_column=True one more column step is appended
+    (a "rounds + 0.5" model, used as a tie-breaker in rotation screening)."""
     m = Model()
     S = [m.word() for _ in range(16)]
     m.snapshots.append(('in', list(S)))
@@ -97,6 +99,10 @@ def build_perm(rounds, rot):
         for (a, b, c, d) in QUARTERS[4:]:
             S[a], S[b], S[c], S[d] = m.q(S[a], S[b], S[c], S[d], rot)
         m.snapshots.append(('r%d_out' % (r + 1), list(S)))
+    if extra_column:
+        for (a, b, c, d) in QUARTERS[:4]:
+            S[a], S[b], S[c], S[d] = m.q(S[a], S[b], S[c], S[d], rot)
+        m.snapshots.append(('r%d_col' % (rounds + 1), list(S)))
     return m
 
 

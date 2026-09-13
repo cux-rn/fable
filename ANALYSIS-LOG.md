@@ -356,3 +356,33 @@ python sat/verify_lin.py data/lin/lin_perm_r1_rot16_12_8_7.json
 经验验证（单 Q，k=1，2^20 样本）：无常量时 Pr[Q(x<<<1) = Q(x)<<<1] = 2^−7.18（独立模型 2^−5.66，链式模加相关性使真实值更低，与 Khovratovich 等 2015 "ARX revisited" 的观察一致）；先向 a 异或 RC[6]（注入 RX 差分 hw=16）后 2^20 样本中 **0 次**命中（< 2^−20）。
 
 **判断**：即使完全不注入常量，Fable-P 的 32 加/轮结构就已使 6 轮的纯旋转概率低于 2^−271，远低于 2^−256；常量注入每轮再叠加 ≥ 20 bit 以上的 RX 代价，且没有任何 k 让某一轮的注入差分为零。**旋转差分攻击对 P_6/P_12 完全不可行，常量足以阻止（其实常量的作用主要在阻止对称/slide 性质，见 v0.1 阶段 4，而不是旋转差分）。** 未做：带常量的 RX 差分 SAT 精确最优（需要 Ashur–Liu 的精确模加 RX 模型），鉴于上述余量没有必要。
+
+---
+
+## 2026-09-13 — v0.2 阶段 5：Fable-Stream 8 路 AVX2 整体实现与吞吐（§8-9b）
+
+**实现**：`c/fable_stream_avx2.c/.h`。8 个满分块并行：16 个 __m256i 寄存器各存 8 个状态的同一个字（通道 = 分块），整个 AEAD（初始化 P_12、AD 吸收 P_6、每 32 字节块 P_6、最终化 P_12）都在转置布局中完成；明文/密文与状态之间用 8×8 32-bit 转置（unpack/permute2x128，每块两次）交换。不足 8 个的剩余分块和末块（含空末块、非 32 倍数分块尾部）走标量 `fable_aead_encrypt`。输出格式与 `fable.py` 的 `stream_encrypt` 完全一致。`fable_stream_encrypt_scalar` 为纯标量对照。
+
+**正确性**：`tests/check_stream_avx2.py` 与 Python 参考逐字节比对 9 种组合（分块 32/1000/4096/65536 字节，长度 0 ～ 590 KB，覆盖 1～3 个 x8 组、剩余分块、空末块、非 32 倍数分块），AVX2 与标量输出均与 Python 一致，且 Python `stream_decrypt` 能解密 AVX2 输出。`RESULT: ALL OK`。
+
+**复现**：
+```
+bash c/build.sh && python tests/check_stream_avx2.py
+clang -O3 -std=c11 -mavx2 c/bench_stream.c c/fable_stream_avx2.c c/fable_p_avx2.c c/fable_p.c c/fable_aead.c -o build/bench_stream.exe && ./build/bench_stream.exe 1024 65536 3
+openssl speed -evp chacha20-poly1305 -seconds 2
+python tools/bench_chacha.py 1024
+```
+原始输出：`data/bench_stream_result.txt`、`data/bench_openssl_speed.txt`、`data/bench_chacha_result.txt`。
+
+**吞吐**（单线程，1 GiB 输入，64 KiB 分块，Raptor Lake P 核，测试时机器另有低优先级后台负载；核心时钟按相关加法链现场校准为 3.65 GHz）：
+
+| 实现 | 时间 | GB/s | cpb |
+|---|---|---|---|
+| **Fable-Stream AVX2 ×8** | 0.545 s | **1.97** | **1.85** |
+| Fable-Stream 标量 | 2.434 s | 0.44 | 8.27 |
+| ChaCha20-Poly1305，OpenSSL 3.5（python cryptography 48，1 次调用 1 GiB） | 0.706 s | 1.52 | ≈2.4 |
+| ChaCha20-Poly1305，OpenSSL 3.5，64 KiB 分块循环 | 0.739 s | 1.45 | ≈2.5 |
+| ChaCha20-Poly1305，libsodium（pynacl 1.6.2 内置库，1 次调用） | 2.791 s | 0.39 | — |
+| OpenSSL 3.5.4 `speed -evp`（Git 自带 mingw 版，16 KiB 块） | — | 1.17 | — |
+
+**判断**：Fable-Stream 的 8 路 AVX2 实现单线程 1.97 GB/s、1.85 cpb，**比同机 OpenSSL 的 ChaCha20-Poly1305 快约 30%**，且已含认证；与 v0.1 阶段 5 的置换核心 1.6 cpb 相比，转置、AD、初始化/最终化（每 64 KiB 分块两次 P_12 + 一次 P_6，约 0.2%）和标量末块的开销合计约 15%。规范 §7.1"与 ChaCha20-Poly1305 同量级（±30%）"的预期成立，且偏向有利的一侧。pynacl 自带的 libsodium 明显没有启用 AVX2 路径（0.39 GB/s），不作为参考。标量 8.3 cpb 高于阶段 5 的置换 6.9 cpb，差额来自每块的字节加载/存储和 AEAD 逻辑。多线程未测（分块独立，理论线性扩展）。

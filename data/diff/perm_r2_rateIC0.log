@@ -40,3 +40,4 @@ perm_r2_rot16_12_8_7_rateIC0: vars=6592 clauses=36736 weight_lits=1984
   k<=38: UNSAT (1318.3s)
   k<=39: UNSAT (2231.6s)
   k<=40: UNSAT (4661.0s)
+search terminated by user at 23:12 (2026-09-13); last line above is the final proven bound (weight >= last k + 1)

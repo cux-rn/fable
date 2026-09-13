@@ -27,3 +27,4 @@ lin_perm_r1_rot16_12_8_7_rateIO: vars=5600 clauses=22464 weight_lits=992
   k<=25: UNSAT (2438.2s)
   k<=26: UNSAT (3689.5s)
   k<=27: UNSAT (6050.4s)
+search terminated by user at 23:12 (2026-09-13); last line above is the final proven bound (weight >= last k + 1)

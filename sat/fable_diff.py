@@ -113,6 +113,27 @@ def decode(m, model):
             'weight_check': sum(int(val(w)) for w in m.weights)}
 
 
+def restrict_rate(m, rate_in=True, cap_out_zero=False, rate_out_nonzero=False):
+    """Keyed-duplex data-phase model (spec v0.2 §2.4 / §8-4b):
+      rate_in         : input difference only in S[0..7]; S[8..15] input difference = 0
+      cap_out_zero    : output difference in S[8..15] = 0 (internal-collision / forgery model)
+      rate_out_nonzero: output difference in S[0..7] != 0 (observable in the keystream)
+    Adds unit clauses / one big clause to m.clauses; the nonzero-input clause added by
+    Searcher then effectively ranges over S[0..7] only."""
+    inp = m.snapshots[0][1]
+    out = m.snapshots[-1][1]
+    if rate_in:
+        for w in inp[8:16]:
+            for l in w:
+                m.clauses.append([-l])
+    if cap_out_zero:
+        for w in out[8:16]:
+            for l in w:
+                m.clauses.append([-l])
+    if rate_out_nonzero:
+        m.clauses.append([l for w in out[0:8] for l in w])
+
+
 class Searcher:
     """Incremental min-weight search. lb = proven lower bound (weight >= lb),
     ub = weight of best trail found (None if none)."""
@@ -201,6 +222,10 @@ def main():
     ap.add_argument('--solver', default=None,
                     help='pysat solver name; default cadical153, or glucose4 when --timeout is set '
                          '(CaDiCaL cannot be interrupted in pysat)')
+    ap.add_argument('--rate-in', action='store_true', help='input difference restricted to S[0..7]')
+    ap.add_argument('--cap-out-zero', action='store_true', help='output difference in S[8..15] must be 0')
+    ap.add_argument('--rate-out-nonzero', action='store_true', help='output difference in S[0..7] must be nonzero')
+    ap.add_argument('--half', action='store_true', help='append one extra column step (rounds + 0.5)')
     a = ap.parse_args()
     rot = tuple(int(x) for x in a.rot.split(','))
     solver = a.solver or ('glucose4' if a.timeout else 'cadical153')
@@ -208,13 +233,17 @@ def main():
     if a.target == 'q':
         m = build_q(rot); kmax = a.kmax or 40; name = 'q_rot%s' % '_'.join(map(str, rot))
     else:
-        m = build_perm(a.rounds, rot); kmax = a.kmax or 160
-        name = 'perm_r%d_rot%s' % (a.rounds, '_'.join(map(str, rot)))
+        m = build_perm(a.rounds, rot, extra_column=a.half); kmax = a.kmax or 160
+        name = 'perm_r%d%s_rot%s' % (a.rounds, 'h' if a.half else '', '_'.join(map(str, rot)))
+        if a.rate_in or a.cap_out_zero or a.rate_out_nonzero:
+            restrict_rate(m, a.rate_in, a.cap_out_zero, a.rate_out_nonzero)
+            name += '_rate' + ('I' if a.rate_in else '') + ('C0' if a.cap_out_zero else '') + ('O' if a.rate_out_nonzero else '')
     print('%s: vars=%d clauses=%d weight_lits=%d' % (name, m.nv, len(m.clauses), len(m.weights)), flush=True)
     se = Searcher(m, kmax, solver)
     se.run(a.timeout, a.total)
     res = {'target': a.target, 'rounds': a.rounds if a.target == 'perm' else None, 'rot': rot,
-           'solver': solver,
+           'solver': solver, 'half': a.half,
+           'restrict': {'rate_in': a.rate_in, 'cap_out_zero': a.cap_out_zero, 'rate_out_nonzero': a.rate_out_nonzero},
            'lower_bound_weight': se.lb, 'best_trail_weight': se.ub,
            'optimal': se.ub is not None and se.ub == se.lb,
            'best_trail': se.best, 'log': se.log, 'seconds': round(time.time() - t0, 1),

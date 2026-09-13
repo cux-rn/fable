@@ -1,0 +1,6 @@
+perm_r0h_rot16_12_8_7_rateI: vars=2032 clauses=9312 weight_lits=496
+  k<=0: UNSAT (0.0s)
+  k<=1: UNSAT (0.0s)
+  k<=2: SAT (0.0s)
+RESULT perm_r0h_rot16_12_8_7_rateI: weight >= 2, best trail weight = 2, optimal=True (0.1s)
+wrote D:\Project\fable\data\diff\perm_r0h_rot16_12_8_7_rateI.json

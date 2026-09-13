@@ -1,0 +1,30 @@
+== rotational probability of one modular addition, p_k = (1 + 2^(k-n) + 2^-k + 2^-n)/4 ==
+  k= 1: p=0.37500 = 2^-1.415 ; per Fable round (32 adds): 2^-45.3 ; 6 rounds: 2^-271.7 ; 12 rounds: 2^-543.4
+  k= 2: p=0.31250 = 2^-1.678 ; per Fable round (32 adds): 2^-53.7 ; 6 rounds: 2^-322.2 ; 12 rounds: 2^-644.4
+  k= 4: p=0.26563 = 2^-1.913 ; per Fable round (32 adds): 2^-61.2 ; 6 rounds: 2^-367.2 ; 12 rounds: 2^-734.4
+  k= 8: p=0.25098 = 2^-1.994 ; per Fable round (32 adds): 2^-63.8 ; 6 rounds: 2^-382.9 ; 12 rounds: 2^-765.8
+  k=16: p=0.25001 = 2^-2.000 ; per Fable round (32 adds): 2^-64.0 ; 6 rounds: 2^-384.0 ; 12 rounds: 2^-768.0
+
+== RX-difference injected by the constants per round: d0 = RC ^ (RC<<<k) into S[0], d5 for RC<<<16 into S[5] ==
+  (weights hw(d0), hw(d5); crude extra-cost lower bound per round = max(0,hw(d0)-2) + max(0,hw(d5)-2))
+  k= 1: hw(d0)/hw(d5) per round: 14/14 18/18 10/10 16/16 16/16 18/18 16/16 10/10 16/16 14/14 16/16 14/14
+        extra-cost lower bound: P_6 (RC[6..11]) >= 148 bits, P_12 >= 308 bits; zero-difference rounds: 0
+  k= 2: hw(d0)/hw(d5) per round: 14/14 14/14 12/12 16/16 18/18 14/14 10/10 18/18 10/10 16/16 22/22 20/20
+        extra-cost lower bound: P_6 (RC[6..11]) >= 168 bits, P_12 >= 320 bits; zero-difference rounds: 0
+  k= 4: hw(d0)/hw(d5) per round: 14/14 16/16 16/16 14/14 12/12 16/16 16/16 20/20 8/8 20/20 14/14 16/16
+        extra-cost lower bound: P_6 (RC[6..11]) >= 164 bits, P_12 >= 316 bits; zero-difference rounds: 0
+  k= 8: hw(d0)/hw(d5) per round: 14/14 16/16 14/14 14/14 16/16 16/16 16/16 10/10 10/10 14/14 20/20 20/20
+        extra-cost lower bound: P_6 (RC[6..11]) >= 156 bits, P_12 >= 312 bits; zero-difference rounds: 0
+  k=16: hw(d0)/hw(d5) per round: 14/14 18/18 16/16 14/14 14/14 14/14 18/18 10/10 16/16 20/20 14/14 10/10
+        extra-cost lower bound: P_6 (RC[6..11]) >= 152 bits, P_12 >= 308 bits; zero-difference rounds: 0
+
+== minimum over k of the injected weight (worst case for the designer) ==
+  min_k,i [hw(d0)+hw(d5)] = 16 at k=4, round 8
+
+== combined RX-characteristic upper bound (independent-addition model) ==
+  k= 1: P_6  RX prob <= 2^-419.7 (base 271.7 + constants >= 148);  P_12 <= 2^-851.4 (base 543.4 + constants >= 308)
+  k=16: P_6  RX prob <= 2^-536.0 (base 384.0 + constants >= 152);  P_12 <= 2^-1076.0 (base 768.0 + constants >= 308)
+
+== empirical check on one Q (k=1, 2^20 samples): Pr[Q(x<<<1) == Q(x)<<<1] ==
+  no constant : 7246/1048576 = 2^-7.18  (model 4 adds: 2^-5.66)
+  with RC[6]=d54d783f XORed into a first (injected RX-diff hw=16): 0/1048576 = 0 (below 2^-20)

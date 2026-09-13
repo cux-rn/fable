@@ -1,0 +1,831 @@
+{
+ "target": "perm",
+ "rounds": 0,
+ "rot": [
+  16,
+  12,
+  8,
+  7
+ ],
+ "solver": "cadical153",
+ "half": true,
+ "restrict": {
+  "rate_in": true,
+  "cap_out_zero": true,
+  "rate_out_nonzero": false
+ },
+ "lower_bound_weight": 161,
+ "best_trail_weight": null,
+ "optimal": false,
+ "best_trail": null,
+ "log": [
+  {
+   "k": 0,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 1,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 2,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 3,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 4,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 5,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 6,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 7,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 8,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 9,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 10,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 11,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 12,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 13,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 14,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 15,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 16,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 17,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 18,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 19,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 20,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 21,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 22,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 23,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 24,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 25,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 26,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 27,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 28,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 29,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 30,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 31,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 32,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 33,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 34,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 35,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 36,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 37,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 38,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 39,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 40,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 41,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 42,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 43,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 44,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 45,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 46,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 47,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 48,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 49,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 50,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 51,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 52,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 53,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 54,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 55,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 56,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 57,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 58,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 59,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 60,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 61,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 62,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 63,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 64,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 65,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 66,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 67,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 68,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 69,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 70,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 71,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 72,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 73,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 74,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 75,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 76,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 77,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 78,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 79,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 80,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 81,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 82,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 83,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 84,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 85,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 86,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 87,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 88,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 89,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 90,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 91,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 92,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 93,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 94,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 95,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 96,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 97,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 98,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 99,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 100,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 101,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 102,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 103,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 104,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 105,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 106,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 107,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 108,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 109,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 110,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 111,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 112,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 113,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 114,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 115,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 116,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 117,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 118,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 119,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 120,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 121,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 122,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 123,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 124,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 125,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 126,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 127,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 128,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 129,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 130,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 131,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 132,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 133,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 134,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 135,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 136,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 137,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 138,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 139,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 140,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 141,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 142,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 143,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 144,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 145,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 146,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 147,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 148,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 149,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 150,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 151,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 152,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 153,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 154,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 155,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 156,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 157,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 158,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 159,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 160,
+   "result": false,
+   "seconds": 0.0
+  }
+ ],
+ "seconds": 0.1,
+ "vars": 2032,
+ "clauses": 9568
+}

@@ -1,0 +1,1 @@
+single_rounds=2 samples=4194304 seed=102 noconst=0 ib=[0,512) max|eps|=0.500000 (2^-1.00) at in=8 out=0 sigma=0.000244

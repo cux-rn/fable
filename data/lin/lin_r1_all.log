@@ -1,0 +1,5 @@
+lin_perm_r1_rot16_12_8_7: vars=5600 clauses=21952 weight_lits=992
+  k<=0: UNSAT (0.0s)
+  k<=1: SAT (0.0s)
+RESULT lin_perm_r1_rot16_12_8_7: weight >= 1, best trail weight = 1, optimal=True (0.2s)
+wrote D:\Project\fable\data\lin\lin_perm_r1_rot16_12_8_7.json

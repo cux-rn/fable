@@ -1,0 +1,208 @@
+{
+ "target": "perm",
+ "rounds": 1,
+ "rot": [
+  16,
+  12,
+  8,
+  7
+ ],
+ "solver": "cadical153",
+ "half": false,
+ "restrict": {
+  "rate_in": true,
+  "cap_out_zero": false,
+  "rate_out_nonzero": true
+ },
+ "lower_bound_weight": 22,
+ "best_trail_weight": 22,
+ "optimal": true,
+ "best_trail": {
+  "trail": [
+   [
+    "in",
+    [
+     "00000000",
+     "00000000",
+     "80088008",
+     "00000000",
+     "00000000",
+     "00000000",
+     "80080008",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000"
+    ]
+   ],
+   [
+    "r1_col",
+    [
+     "00000000",
+     "00000000",
+     "80000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00400000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "80000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000",
+     "00000000"
+    ]
+   ],
+   [
+    "r1_out",
+    [
+     "00000800",
+     "00440004",
+     "88000000",
+     "00000000",
+     "00000000",
+     "04040040",
+     "02222222",
+     "40404404",
+     "00808088",
+     "00000000",
+     "80080000",
+     "44004440",
+     "44004400",
+     "00800088",
+     "00000000",
+     "00080000"
+    ]
+   ]
+  ],
+  "weight_check": 22
+ },
+ "log": [
+  {
+   "k": 0,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 1,
+   "result": false,
+   "seconds": 0.0
+  },
+  {
+   "k": 2,
+   "result": false,
+   "seconds": 0.02
+  },
+  {
+   "k": 3,
+   "result": false,
+   "seconds": 0.06
+  },
+  {
+   "k": 4,
+   "result": false,
+   "seconds": 0.2
+  },
+  {
+   "k": 5,
+   "result": false,
+   "seconds": 0.27
+  },
+  {
+   "k": 6,
+   "result": false,
+   "seconds": 0.71
+  },
+  {
+   "k": 7,
+   "result": false,
+   "seconds": 0.91
+  },
+  {
+   "k": 8,
+   "result": false,
+   "seconds": 1.48
+  },
+  {
+   "k": 9,
+   "result": false,
+   "seconds": 2.01
+  },
+  {
+   "k": 10,
+   "result": false,
+   "seconds": 3.28
+  },
+  {
+   "k": 11,
+   "result": false,
+   "seconds": 5.94
+  },
+  {
+   "k": 12,
+   "result": false,
+   "seconds": 7.97
+  },
+  {
+   "k": 13,
+   "result": false,
+   "seconds": 13.77
+  },
+  {
+   "k": 14,
+   "result": false,
+   "seconds": 13.63
+  },
+  {
+   "k": 15,
+   "result": false,
+   "seconds": 27.78
+  },
+  {
+   "k": 16,
+   "result": false,
+   "seconds": 37.22
+  },
+  {
+   "k": 17,
+   "result": false,
+   "seconds": 50.8
+  },
+  {
+   "k": 18,
+   "result": false,
+   "seconds": 66.1
+  },
+  {
+   "k": 19,
+   "result": false,
+   "seconds": 137.26
+  },
+  {
+   "k": 20,
+   "result": false,
+   "seconds": 206.09
+  },
+  {
+   "k": 21,
+   "result": false,
+   "seconds": 374.62
+  },
+  {
+   "k": 22,
+   "result": true,
+   "seconds": 12.18
+  }
+ ],
+ "seconds": 962.5,
+ "vars": 3552,
+ "clauses": 18369
+}

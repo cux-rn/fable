@@ -1,0 +1,4 @@
+The 'numbers' are in 1000s of bytes per second processed.
+type             16 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes  16384 bytes
+ChaCha20-Poly1305   406084.68k   489811.52k   588194.18k  1086892.89k  1056280.58k  1174238.68k
+141100 ChaCha20-Poly1305 ops in 1.97s

@@ -188,7 +188,7 @@ with associated data $H$, producing $C_i \,\|\, T_i$; the output is $H \,\|\, C_
 
 \subsection{\FableHash and \FableXOF}
 \label{sec:hashspec}
-The hash is a plain sponge with $r = c = 256$ and $\PP{12}$ throughout. The initial state is $\mathrm{IV}_0 \,\|\, \texttt{0x01202000} \,\|\, 0^{14\times 32}$ (the rounds byte of $\mathrm{IV}_1$ is zero, which separates hashing from every AEAD parameter set). Absorption XORs 32-byte blocks into $S[0..7]$ with a $\PP{12}$ after each, the last block $10^*$-padded as above; squeezing outputs $S[0..7]$ and applies $\PP{12}$ between output blocks. \FableHash-256 is the first 32 bytes of the XOF. Claimed: 128-bit collision resistance and 256-bit preimage resistance (for XOF outputs of at least 512 bits).
+The hash is a plain sponge with $r = c = 256$ and $\PP{12}$ throughout. The initial state is $\mathrm{IV}_0 \,\|\, \texttt{0x01202000} \,\|\, 0^{14\times 32}$ (the rounds byte of $\mathrm{IV}_1$ is zero, which separates hashing from every AEAD parameter set). Absorption XORs 32-byte blocks into $S[0..7]$ with a $\PP{12}$ after each, the last block $10^*$-padded as above; squeezing outputs $S[0..7]$ and applies $\PP{12}$ between output blocks. \FableHash-256 is the first 32 bytes of the XOF. Claimed: 128-bit security against all attacks (collision, preimage and second preimage), the flat sponge claim for $c = 256$; cf.\ SHAKE128.\footnote{Specification versions v0.1--v0.4 claimed 256-bit preimage resistance for the XOF. That claim was wrong: with $c = 256$ a generic internal-collision (meet-in-the-middle) attack finds preimages in $2^{c/2} = 2^{128}$ work regardless of the output length. Version v0.4.1 and this paper correct it.}
 
 \subsection{Test vectors}
 Appendix~\ref{app:vectors} lists $\PP{12}$ and $\PP{8}$ applied to the all-zero state and one AEAD vector per parameter set. The full set (five AEAD vectors per parameter set, two hash vectors, both permutation vectors) is \texttt{test\_vectors\_v0.3.json} in the repository; the \FableF vectors coincide with the v0.1 vectors, which were generated before the parameter set existed.
@@ -196,18 +196,79 @@ Appendix~\ref{app:vectors} lists $\PP{12}$ and $\PP{8}$ applied to the all-zero 
 % =====================================================================
 \section{Design Rationale}
 \label{sec:rationale}
-% TODO (section 3)
+
+Every choice below is tied to an experiment or a proof in \S\ref{sec:security}; the last sentence of each subsection names it.
+
+\subsection{ARX and the \ChaCha double round}
+\label{sec:whyarx}
+\FableP is an ARX permutation on sixteen 32-bit words for three reasons. First, the operations map one-to-one onto SIMD lanes: a 512-bit state is half an AVX2 register file, eight independent states fit in the eight 32-bit lanes of the sixteen \texttt{ymm} registers, and the rotations by 16 and 8 are byte shuffles. Second, ARX has no table look-ups and no data-dependent branches, so constant-time execution is the default rather than an engineering effort. Third, by taking the round function to be exactly the \ChaCha double round---column step, diagonal step, quarter-round rotations $(16,12,8,7)$---we inherit a body of published cryptanalysis that is unusually deep for a symmetric primitive: differential-linear attacks with probabilistic neutral bits have been refined continuously since 2008~\cite{AFKMR08,BLT20,BBCDFLNT22,CS21,DGSS22,DGM23,WLHL23,Dey24,SDSM25,FT25,FT25b}, and the best of them is the yardstick for our round counts. The price is well known: an ARX round has no provable lower bound on the number of active S-boxes, so no ``$n$ rounds have no characteristic above $2^{-128}$'' statement can be made the way it is for an SPN such as Ascon's S-box layer~\cite{Ascon21}. We accepted this trade because a wide-trail SPN at the same throughput on general-purpose CPUs would need a bitsliced S-box layer, and because the questions an ARX design leaves open are precisely the ones the \ChaCha literature has spent two decades sharpening. The calibration of that literature to \FableP is in \S\ref{sec:dl}, and the exact statements we can make (SAT trail bounds) are in \S\ref{sec:diff} and \S\ref{sec:linear}.
+
 \subsection{Round constants and the column-symmetric subspace}
 \label{sec:constants}
+\ChaCha is a PRF: its input contains four fixed constant words, and every round acts on a state that the attacker can only influence through the key, nonce and counter positions. A sponge permutation enjoys no such protection---after the first block the whole state is a function of attacker-chosen data---so symmetry must be broken inside the round. Consider the round function $F_0$ with all constants set to zero, i.e.\ the bare \ChaCha double round.
+
+\begin{lemma}[column-symmetric subspace]
+Let $\mathcal{V} = \{S : S[4j+k] = S[4j] \text{ for all } j,k \in \{0,1,2,3\}\}$ be the set of states whose four columns are identical ($|\mathcal{V}| = 2^{128}$). Then $F_0(\mathcal{V}) = \mathcal{V}$.
+\end{lemma}
+\begin{proof}
+For $S \in \mathcal{V}$ the four column quarter-rounds $Q(S[j],S[4{+}j],S[8{+}j],S[12{+}j])$, $j = 0,\ldots,3$, receive the same input $(S[0],S[4],S[8],S[12])$, hence produce the same output, so the state after the column step is again in $\mathcal{V}$. For such a state the four diagonal quarter-rounds $Q(S[0],S[5],S[10],S[15])$, $Q(S[1],S[6],S[11],S[12])$, $Q(S[2],S[7],S[8],S[13])$, $Q(S[3],S[4],S[9],S[14])$ also receive identical inputs---each diagonal picks one word from each row, and all words of a row are equal---so the diagonal step preserves $\mathcal{V}$ as well.
+\end{proof}
+
+The all-zero state is a fixed point of $F_0$ (it lies in $\mathcal{V}$ and $Q(0,0,0,0) = 0$), and $\mathcal{V}$ is the only ``large'' symmetric class we found to be invariant: the classes ``four identical rows'' and ``all sixteen words equal'' are left after one round. A constant XORed into a single word $S[0]$ already makes column 0 differ from columns 1--3; \FableP injects into two words, $S[0]$ and $S[5]$, which lie in different columns (0 and 1), different rows (0 and 1) and on the same diagonal, so that in one round the constant enters two of the four column quarter-rounds and one diagonal quarter-round, and the two injections never cancel: $\mathrm{RC}[i] \oplus (\mathrm{RC}[i] \rotl 16) \neq 0$ for all $i$ and $\mathrm{RC}[i] \neq \mathrm{RC}[j] \rotl 16$ for all $i,j$.
+
+The constants themselves are the fractional parts of $\ln p_i$ for the first twelve primes. We chose the natural logarithm rather than the square or cube roots used by SHA-2 so that no bit pattern is shared with another standard and no ``reused constant'' question arises; the resulting words are pairwise distinct, none is a rotation of another, and their minimum pairwise Hamming distance is 9. A reduced permutation uses the \emph{last} $n$ constants, so that $\PP{8}$ and $\PP{6}$ are suffixes of $\PP{12}$, as in Ascon~\cite{Ascon21}: any analysis of the heavy permutation restricted to its last rounds is directly an analysis of the light one, and the suffix sequence $\mathrm{RC}[6..11]$ does not recur as a window elsewhere in the table, which is what a slide attack between the two permutations would need.
+
+The corresponding checks---the invariance of $\mathcal{V}$ under $F_0$ for 1--12 rounds, its destruction in every one of the twelve rounds on $10^4$ random column-symmetric states, the absence of structured fixed points and of equal or rotated constants---are in \S\ref{sec:constcheck}; the rotational-XOR cost the constants impose is in \S\ref{sec:rx}.
+
+\subsection{Rotation constants}
+\label{sec:whyrot}
+The rotation amounts $(16,12,8,7)$ are inherited from \ChaCha, and the specification originally marked them provisional pending a screening of all $32^4$ alternatives by differential trail weight. The screening (\S\ref{sec:rotscreen}) found that the natural metrics degenerate in order: the best trail through a single quarter-round has weight 0 for \emph{every} one of the $2^{20}$ choices, because a difference confined to the most significant bit passes all four additions for free (Lemma~\ref{lem:msb}); the best one-round trail of \FableP has weight exactly 2 for every sampled choice without a zero rotation (201,422 of 254,576); and the best 1.5-round trail saturates at weight 12 for 67\,\% of a 2000-choice sample, with no choice above 12. On the only metric that separated candidates---one-round bit-level diffusion---the \ChaCha constants rank in the middle of the top class, and none of the 20 fastest-diffusing candidates beat them on the two-round trail bound (all $\geq 25$, the baseline $\geq 31$). Since no differential argument favours a change, and the \ChaCha constants carry the analysis heritage of \S\ref{sec:whyarx}, they were kept; the fact that 16 and 8 are byte shuffles on AVX2 and NEON is a welcome side effect. The full ranking tables are in \S\ref{sec:rotscreen}.
+
+\subsection{Round counts}
+\label{sec:whyrounds}
+Because no trail-based argument reaches $2^{-128}$ for a full data-phase permutation (the best we prove is a $2^{-132}$ split bound for the forgery model of $\PP{8}$, \S\ref{sec:diff}), the round counts are set by an empirical margin: the ratio between the number of \ChaCha single rounds in a permutation and the number reached by the strongest published key-recovery attack on \ChaCha, which is 7.5 as of 2025~\cite{FT25,Dey24,SDSM25}. The default \Fable data phase $\PP{8}$ has 16 single rounds and a margin of $2.1\times$; initialisation and finalisation $\PP{12}$ have 24 and $3.2\times$, more than ChaCha20's own $20/7.5 = 2.7\times$. \FableF keeps $\PP{6}$ (12 single rounds, $1.6\times$) for throughput-bound settings that accept the margin of ChaCha12~\cite{Adiantum18}; it was the only data-phase permutation in versions v0.1--v0.2, and was demoted to an optional set when the $1.6\times$ margin was judged too close to the $1.5\times$ floor the specification sets for itself. A five-round data phase (10 single rounds, $1.33\times$) was considered for speed and removed for the same reason. The comparison is meaningful only if the round constants do not make \FableP's differential-linear behaviour different from \ChaCha's; \S\ref{sec:dl} measures this directly and finds the bias envelopes identical.
+
+\subsection{Rate and capacity}
+\label{sec:whyrc}
+With $b = 512$, the split $r = c = 256$ gives the keyed duplex its ``beyond $2^{c/2}$'' regime~\cite{JLM14}: the dominant multi-user term is $M N / 2^c$, where $M$ is the total number of processed blocks and $N$ the attacker's offline permutation evaluations~\cite{DMV17}. At $c = 256$ this term is $2^{-37}$ even for $\mu = 2^{32}$ users, $2^{64}$ bytes per user ($M \approx 2^{91}$) and $N = 2^{128}$, and $2^{-69}$ for a single user. A 320-bit rate ($c = 192$) would raise throughput by 25\,\% but makes the same term $2^{27}$ in the multi-user setting and $2^{-5}$ even for one user at the data limit; such a variant could only be offered with a single-user, data-limited claim, so it is not a general-purpose parameter set. The bound and its evaluation are in \S\ref{sec:mu}.
+
+\subsection{The tag is the rate, not the rate XOR the key}
+\label{sec:whytag}
+\FableAEAD outputs $T = S[0..7]$ after the finalising $\PP{12}$ and does not XOR the key into it. The key has already been injected into the capacity before that permutation, so the tag is the $\tau$-bit truncation of $\PP{12}$ applied to a state that is a function of the key, the nonce, the associated data, the message and the parameter-set identifier. Any two inputs that produce the same tag therefore either produce the same 512-bit state (a $2^{-512}$ event with a fixed key difference) or a collision of a truncated permutation, and the commitment strength is $\tau/2$ bits for the cost of nothing. XORing the key into the tag, as Ascon does, would not obviously weaken this---the adversary would then need $F(X) \oplus F(X') = K \oplus K'$---but it would make the reduction depend on a relation between the key and the tag rather than on the collision resistance of a public function alone, and we preferred the argument whose only assumption is that $\PP{12}$ has no collision shortcut. The reduction is Theorem~\ref{thm:cmt} in \S\ref{sec:commitment}.
+
+\subsection{Nonce length, file nonce, chunk size and STREAM}
+\label{sec:whystream}
+The AEAD nonce is 192 bits so that \FableStream can spend 32 bits on a chunk counter and 8 bits on the end-of-file flag and still leave 152 random bits for the file nonce $N_f$. For $F$ files under one key the probability that two random file nonces coincide is at most $F^2/2^{153}$: $2^{-73}$ at $F = 2^{40}$ and $2^{-57}$ in the degenerate case of $2^{48}$ single-chunk files that exhausts the $2^{64}$-byte budget. This is the largest term in the concrete security bound (\S\ref{sec:mu}), which is why the specification also admits a caller-supplied structured $N_f$ with zero collision term. The default chunk of 64\,KiB is a compromise between overhead and granularity: the 32-byte tag per chunk is 0.05\,\% of the data, the two $\PP{12}$ calls per chunk add about 0.2\,\% to the round count of the 2048 data-phase permutations, and 64\,KiB is large enough for the eight-lane AVX2 implementation to amortise the transposition of state and data. STREAM~\cite{HRRV15} was chosen over a single long duplex stream because it gives, at that cost, independent chunks (thread- and lane-level parallelism, random access on decryption), online decryption in which every released chunk is already authenticated, and a tight reduction to the nonce-based AEAD security of \FableAEAD that covers truncation, reordering and cross-file splicing. The STREAM reduction and the nonce term are in \S\ref{sec:mu} and \S\ref{sec:stream}; the throughput of the eight-lane implementation is in \S\ref{sec:impl}.
 
 % =====================================================================
 \section{Security Analysis}
 \label{sec:security}
-% TODO (section 4)
+% TODO (section 4): written after Section 3 review. Subsection labels are referenced from Sections 1 and 3.
+\subsection{Avalanche and diffusion}
+\label{sec:avalanche}
 \subsection{Differential trails}
 \label{sec:diff}
+% Lemma~\ref{lem:msb} (probability-one quarter-round differential) and the split bound 2^-132 go here.
+\begin{lemma}[probability-one quarter-round differential]
+\label{lem:msb}
+% TODO statement
+\end{lemma}
+\subsection{Rotation-constant screening}
+\label{sec:rotscreen}
+\subsection{Differential-linear margin}
+\label{sec:dl}
+\subsection{Linear trails and hulls}
+\label{sec:linear}
+\subsection{Rotational-XOR}
+\label{sec:rx}
+\subsection{Constants, slide and fixed points}
+\label{sec:constcheck}
 \subsection{Key commitment}
 \label{sec:commitment}
+\begin{theorem}[key commitment]
+\label{thm:cmt}
+% TODO statement
+\end{theorem}
 \subsection{Multi-user and STREAM bounds}
 \label{sec:mu}
 \subsection{Fable-Stream nonce}

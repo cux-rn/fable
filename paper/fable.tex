@@ -487,7 +487,7 @@ single r. & \Fable r. & \textsf{const} & \textsf{const}, rate$\to$rate & \textsf
 
 \begin{table}[htb]
 \centering
-\caption{Two-round linear hulls (\path{data/lin/hull_r2opt_w*.json}, \path{hull_r2_w*.json}).}
+\caption{Two-round linear hulls (\texttt{data/lin/hull\_r2opt\_w*.json}, \texttt{hull\_r2\_w*.json}).}
 \label{tab:hull}
 \small
 \begin{tabular}{lcrrcc}
@@ -690,7 +690,7 @@ No ARM/NEON implementation exists (the transposed eight-lane design maps to four
 \section{Conclusion and Open Problems}
 \label{sec:conclusion}
 
-\Fable puts one new object on the table---a 512-bit ARX permutation that is the \ChaCha double round with round constants---and builds everything else from constructions with existing proofs: a keyed duplex whose tag is the truncated output of the finalising permutation and therefore commits to the key, the nonce, the associated data and the message at no extra cost; a STREAM mode whose chunks are independent enough to fill eight AVX2 lanes and to be decrypted online; and a sponge hash. The first-party analysis gives exact one-round trail optima, SAT lower bounds for two rounds, a split bound of $2^{-\BoundEight}$ on any forgery trail through the default data phase, a differential-linear calibration showing that the constants do not alter the \ChaCha bias envelope (so that the $2.1\times$ and $3.2\times$ round-count margins can be read against the \ChaCha literature), a hull enumeration, rotational-XOR, symmetry and slide checks, and mode-level bounds; the AVX2 implementation runs at 2.00\,GB/s single-threaded, on par with OpenSSL's ChaCha20-Poly1305 on the same machine, and 2.53\,GB/s for \FableF.
+\Fable puts one new object on the table---a 512-bit ARX permutation that is the \ChaCha double round with round constants---and builds everything else from constructions with existing proofs: a keyed duplex whose tag is the truncated output of the finalising permutation and therefore commits to the key, the nonce, the associated data and the message at no extra cost; a STREAM mode whose chunks are independent enough to fill eight AVX2 lanes and to be decrypted online; and a sponge hash. The first-party analysis gives exact one-round trail optima and an exact two-round linear optimum, SAT lower bounds for the two-round differential ones, a split bound of $2^{-\BoundEight}$ on any forgery trail through the default data phase, a differential-linear calibration showing that the constants do not alter the \ChaCha bias envelope (so that the $2.1\times$ and $3.2\times$ round-count margins can be read against the \ChaCha literature), a hull enumeration, rotational-XOR, symmetry and slide checks, and mode-level bounds; the AVX2 implementation runs at 2.00\,GB/s single-threaded, on par with OpenSSL's ChaCha20-Poly1305 on the same machine, and 2.53\,GB/s for \FableF.
 
 \paragraph{Open problems}, in the order in which we think they matter:
 \begin{enumerate}

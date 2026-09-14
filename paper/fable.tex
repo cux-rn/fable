@@ -23,10 +23,7 @@
 \newcommand{\rotl}{\lll}
 \newcommand{\repo}{\texttt{ANALYSIS-LOG.md}\xspace}
 
-\newtheorem{theorem}{Theorem}
-\newtheorem{lemma}{Lemma}
-\newtheorem{corollary}{Corollary}
-\newtheorem{claim}{Claim}
+% theorem, lemma, corollary, claim environments are provided by iacrtrans.cls
 
 % ---- SAT lower bounds still being raised in the background: change ONLY these definitions ----
 \newcommand{\WrateTwo}{39}   % two-round trail weight, rate-in model (SAT lower bound)
@@ -39,6 +36,9 @@
 \author{Anonymous submission}
 \institute{--- \\ \email{---}}
 
+\begin{document}
+\maketitle
+
 \keywords{ARX \and permutation-based cryptography \and keyed duplex \and authenticated encryption \and key commitment \and STREAM \and differential cryptanalysis \and SAT}
 
 \begin{abstract}
@@ -46,11 +46,8 @@ We present \Fable, a family of symmetric primitives built on a single new compon
 
 The design goals are (i) nonces long enough to be chosen at random, (ii) key commitment without an extra pass, obtained by taking the tag directly from the truncated output of the finalising permutation, (iii) authentication in the same pass as encryption, and (iv) chunk-level parallelism that maps eight independent chunks onto AVX2 lanes.
 
-We report a first-party analysis that is fully reproducible from the accompanying repository: avalanche statistics with $5\times10^5$ samples per round count; SAT-based (Lipmaa--Moriai) differential trail bounds, including the observation that every rotation-constant choice admits a probability-one differential through one quarter-round, and a rate-restricted model of the duplex data phase that yields a split bound of $2^{-\BoundEight}$ on any forgery trail through $\PP{8}$; a differential-linear evaluation calibrated against the \ChaCha literature (best key recovery: 7.5 single rounds), giving empirical margins of $2.1\times$ for the \Fable data phase and $3.2\times$ for initialisation; exact linear-trail bounds and a linear-hull enumeration; rotational-XOR, slide and fixed-point checks of the round constants; a key-commitment reduction (commitment strength $\tau/2$ bits for a $\tau$-bit tag); and multi-user bounds for the STREAM composition. An AVX2 implementation encrypts 1\,GiB at 2.00\,GB/s (2.44 cycles/byte) single-threaded for \Fable and 2.53\,GB/s for \FableF, on par with or faster than OpenSSL's ChaCha20-Poly1305 on the same machine, and scales to 11.5\,GB/s on eight cores. \Fable is a research draft: it has received no third-party analysis and must not be used to protect real data.
+We report a first-party analysis that is fully reproducible from the accompanying repository: avalanche statistics with $5\times10^5$ samples per round count; SAT-based (Lipmaa--Moriai) differential trail bounds, including the observation that every rotation-constant choice admits a probability-one differential through one quarter-round, and a rate-restricted model of the duplex data phase that yields a split bound of $2^{-\BoundEight}$ on any forgery trail through $\PP{8}$; a differential-linear evaluation calibrated against the \ChaCha literature (best key recovery: 7.5 single rounds), giving empirical margins of $2.1\times$ for the \Fable data phase and $3.2\times$ for initialisation; linear-trail bounds (exact for one round, a SAT lower bound for two) and a linear-hull enumeration; rotational-XOR, slide and fixed-point checks of the round constants; a key-commitment reduction (commitment strength $\tau/2$ bits for a $\tau$-bit tag); and multi-user bounds for the STREAM composition. An AVX2 implementation encrypts 1\,GiB at 2.00\,GB/s (2.44 cycles/byte) single-threaded for \Fable and 2.53\,GB/s for \FableF, on par with or faster than OpenSSL's ChaCha20-Poly1305 on the same machine, and scales to 11.5\,GB/s on eight cores. \Fable is a research draft: it has received no third-party analysis and must not be used to protect real data.
 \end{abstract}
-
-\begin{document}
-\maketitle
 
 % =====================================================================
 \section{Introduction}
@@ -80,7 +77,7 @@ Each of the four goals above is met by some deployed or standardised scheme; the
 \begin{enumerate}
 \item The specification of \FableP, \FableAEAD, \FableStream and \FableHash with two domain-separated parameter sets and test vectors (\S\ref{sec:spec}).
 \item A design rationale that records, for each choice, the experiment that motivated it (\S\ref{sec:rationale}).
-\item A reproducible first-party analysis (\S\ref{sec:security}): avalanche with $5\times10^5$ states per round count; SAT differential bounds in the unconstrained model (1 round: $2^{-2}$ exact; 2 rounds: $\leq 2^{-\WuncTwo}$) and in the rate-restricted duplex model (1 round: $2^{-22}$ exact; 2 rounds: $\leq 2^{-\WrateTwo}$; no internal collision within half a round), combined into a split bound of $2^{-\BoundEight}$ for any forgery trail through $\PP{8}$ and $2^{-\BoundSix}$ through $\PP{6}$; a rotation-constant screening over all $32^4$ choices for the single-quarter-round metric and 254,576 choices for the one-round metric, showing that neither metric can separate them; a differential-linear evaluation with $2^{22}$ samples per bit pair showing that the round constants do not change the bias envelope relative to the \ChaCha round structure; exact linear-trail bounds (1 round $2^{-1}$, 2 rounds $\leq 2^{-\WlinTwo}$) and a hull enumeration (no hull effect in 1 round, a factor $\approx 9$ in 2 rounds); rotational-XOR bounds ($\leq 2^{-419}$ for $\PP{6}$); slide and fixed-point checks; the key-commitment reduction; and multi-user STREAM bounds.
+\item A reproducible first-party analysis (\S\ref{sec:security}): avalanche with $5\times10^5$ states per round count; SAT differential bounds in the unconstrained model (1 round: $2^{-2}$ exact; 2 rounds: $\leq 2^{-\WuncTwo}$) and in the rate-restricted duplex model (1 round: $2^{-22}$ exact; 2 rounds: $\leq 2^{-\WrateTwo}$; no internal collision within half a round), combined into a split bound of $2^{-\BoundEight}$ for any forgery trail through $\PP{8}$ and $2^{-\BoundSix}$ through $\PP{6}$; a rotation-constant screening over all $32^4$ choices for the single-quarter-round metric and 254,576 choices for the one-round metric, showing that neither metric can separate them; a differential-linear evaluation with $2^{22}$ samples per bit pair showing that the round constants do not change the bias envelope relative to the \ChaCha round structure; linear-trail bounds (1 round $2^{-1}$, exact; 2 rounds $\leq 2^{-\WlinTwo}$, SAT lower bound) and a hull enumeration (no hull effect in 1 round, a factor $\approx 9$ in 2 rounds); rotational-XOR bounds ($\leq 2^{-419}$ for $\PP{6}$); slide and fixed-point checks; the key-commitment reduction; and multi-user STREAM bounds.
 \item Portable C and AVX2 implementations, byte-exact against the Python reference, with throughput measurements against OpenSSL on the same machine (\S\ref{sec:impl}).
 \end{enumerate}
 
@@ -258,7 +255,7 @@ All results in this section are first-party and reproducible: every number is ta
 
 \subsection{Avalanche and diffusion}
 \label{sec:avalanche}
-\paragraph{Model.} For $n$ rounds of \FableP, each of the 512 input bits is flipped in $N = 5\times10^5$ uniformly random states and, for each of the $512\times512$ (input bit, output bit) pairs, the fraction $p$ of states in which the output bit changed is recorded (\texttt{c/avalanche.c}, data \texttt{data/avalanche/av\_r\{1..6\}.u32}). Under the null hypothesis $p = 1/2$ the estimator has standard deviation $\sigma = 0.5/\sqrt{N} = 7.1\times10^{-4}$, and the expected maximum of $2^{18}$ independent Gaussian deviations is $\sigma\sqrt{2\ln 2^{18}} \approx 4.9\sigma = 0.0035$. A structural bias of $0.005$ would therefore stand out at $7\sigma$ above the noise ceiling.
+\paragraph{Model.} For $n$ rounds of \FableP, each of the 512 input bits is flipped in $N = 5\times10^5$ uniformly random states and, for each of the $512\times512$ (input bit, output bit) pairs, the fraction $p$ of states in which the output bit changed is recorded (\texttt{c/avalanche.c}, data \texttt{data/avalanche/av\_r\{1..6\}.u32}). Under the null hypothesis $p = 1/2$ the estimator has standard deviation $\sigma = 0.5/\sqrt{N} = 7.1\times10^{-4}$, and the expected maximum of $2^{18}$ independent Gaussian deviations is about $\sigma\sqrt{2\ln 2^{18}} \approx 5\sigma \approx 0.0035$. A structural bias of $0.005$ would therefore stand out at $7\sigma$, twice the noise ceiling.
 
 \begin{table}[htb]
 \centering
@@ -282,7 +279,7 @@ $n$ & mean $p$ & $\max|p-\tfrac12|$ & pairs $>0.02$ & pairs $>0.01$ & pairs $>0.
 
 \subsection{Differential trails}
 \label{sec:diff}
-\paragraph{Model.} XOR differences propagate through XOR and rotation deterministically and through modular addition with the Lipmaa--Moriai conditions~\cite{LM01}: $(\alpha,\beta\to\gamma)$ is a valid differential of $z = x + y$ iff $\alpha_0\oplus\beta_0\oplus\gamma_0 = 0$ and, for $0 \le i \le 30$, $\alpha_i=\beta_i=\gamma_i$ implies $\alpha_{i+1}\oplus\beta_{i+1}\oplus\gamma_{i+1} = \alpha_i$; its weight is the number of positions $i \le 30$ with $\neg(\alpha_i=\beta_i=\gamma_i)$ and its probability $2^{-\text{weight}}$. Round constants are transparent to XOR differences. The permutation is encoded in CNF with one weight literal per addition bit (Appendix~\ref{app:sat}), the total weight is bounded with an incremental totalizer, and the minimum is found by increasing the bound until the instance is satisfiable (CaDiCaL~\cite{CaDiCaL} through PySAT~\cite{PySAT18}). Found trails are checked empirically by sampling through the C permutation (\texttt{sat/verify\_trail.py}).
+\paragraph{Model.} XOR differences propagate through XOR and rotation deterministically and through modular addition with the Lipmaa--Moriai conditions~\cite{LM01}: $(\alpha,\beta\to\gamma)$ is a valid differential of $z = x + y$ iff $\alpha_0\oplus\beta_0\oplus\gamma_0 = 0$ and, for $0 \le i \le 30$, $\alpha_i=\beta_i=\gamma_i$ implies $\alpha_{i+1}\oplus\beta_{i+1}\oplus\gamma_{i+1} = \alpha_i$; its weight is the number of positions $i \le 30$ with $\neg(\alpha_i=\beta_i=\gamma_i)$ and its probability $2^{-\text{weight}}$. Round constants are transparent to XOR differences. The permutation is encoded in CNF with one weight literal per addition bit (Appendix~\ref{app:sat}), the total weight is bounded with an incremental totalizer, and the minimum is found by increasing the bound until the instance is satisfiable (CaDiCaL~\cite{CaDiCaL} through PySAT~\cite{PySAT18}); this is the approach Mouha and Preneel applied to Salsa20~\cite{MP13}, with a SAT rather than an SMT back end. Found trails are checked empirically by sampling through the C permutation (\texttt{sat/verify\_trail.py}).
 
 \begin{lemma}[probability-one quarter-round differential]
 \label{lem:msb}
@@ -407,7 +404,7 @@ rank & $(r_0,r_1,r_2,r_3)$ & 1.5-round weight & 2-round weight & avalanche mean 
 
 \subsection{Differential-linear calibration}
 \label{sec:dl}
-\paragraph{Literature.} Table~\ref{tab:dllit} lists the published attacks on reduced-round \ChaCha with a 256-bit key; ``rounds'' are \ChaCha single rounds (a \FableP round is two of them). The attack model is the PRF one: the adversary chooses nonce and counter words and sees the full 512-bit output. Single-bit differential-linear distinguishers exist up to 3.5 rounds~\cite{BLT20}, a 4-round distinguisher with a 3-bit output mask has bias $0.0032 \approx 2^{-8.3}$~\cite{BLT20}, 4.5--5-round distinguishers reach correlation $2^{-32.2}$ with hull techniques~\cite{XXTQ24}, and the rest of an attack is 2.5--3 rounds of key guessing with probabilistic neutral bits or bit puncturing. No attack on 8 rounds is known.
+\paragraph{Literature.} Table~\ref{tab:dllit} lists the published attacks on reduced-round \ChaCha with a 256-bit key; ``rounds'' are \ChaCha single rounds (a \FableP round is two of them). The attack model is the PRF one: the adversary chooses nonce and counter words and sees the full 512-bit output. Single-bit differential-linear distinguishers exist up to 3.5 rounds~\cite{BLT20}, a 4-round distinguisher with a 3-bit output mask has bias $0.0032 \approx 2^{-8.3}$~\cite{BLT20}, 4.5--5-round distinguishers found by automated (MILP) search~\cite{BGGMPS23} reach correlation $2^{-32.2}$ with hull techniques~\cite{XXTQ24}, and the rest of an attack is 2.5--3 rounds of key guessing with probabilistic neutral bits (whose selection and use were refined in a sequence of works, e.g.~\cite{DGSS22,DGSS23,DGM23,Dey24}) or bit puncturing~\cite{FT25}. No attack on 8 rounds is known.
 
 \begin{table}[htb]
 \centering
@@ -422,8 +419,8 @@ rounds & time & data & reference\\
 6 & $2^{77.4}$ & $2^{58}$ & \cite{BLT20,BBCDFLNT22}\\
 6 & $2^{71.0}$ & $2^{41.6}$ & \cite{Dey24}\\
 6 & $2^{57.4}$ & $2^{55.7}$ & \cite{FT25}\\
-7 & $2^{248}$ / $2^{237.7}$ / $2^{230.86}$ & -- & \cite{AFKMR08} / \cite{CS21} / \cite{BLT20}\\
-7 & $2^{221.95}$ / $2^{218.92}$ & $2^{90.2}$ / $2^{87.2}$ & \cite{DGSS22} / \cite{DGM23}\\
+7 & $2^{248}$ / $2^{237.7}$ / $2^{230.86}$ & -- & \cite{AFKMR08} / \cite{CM16} / \cite{BLT20}\\
+7 & $2^{221.95}$ / $2^{218.92}$ & $2^{90.2}$ / $2^{87.2}$ & \cite{DGSS22} / \cite{DGSS23}\\
 7 & $2^{210.3}$ & $2^{103.3}$ & \cite{WLHL23}\\
 7 & $2^{192.89}$ & $2^{93.79}$ & \cite{Dey24}\\
 7 & $2^{189.7}$ & $2^{102.63}$ & \cite{XXTQ24}\\

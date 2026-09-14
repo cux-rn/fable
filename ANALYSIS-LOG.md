@@ -258,8 +258,8 @@ python sat/verify_trail.py data/diff/perm_r1_rot16_12_8_7_rateI.json --samples 2
 | 6 | 2^77.4 | 2^58 | 首个 3.5 轮单比特区分器 + 划分 | Beierle–Leander–Todo CRYPTO 2020 / JoC 2022 |
 | 6 | 2^71.0 | 2^41.6 | PNB + 线性分解 | Dey, IEEE-IT 2024 |
 | 6 | **2^57.4** | 2^55.7 | bit puncturing + distillation | Flórez-Gutiérrez–Todo EUROCRYPT 2025 |
-| 7 | 2^248 / 2^237.7 / 2^230.86 | — | 早期 PNB 系列 | AFK+08 / CM17 / BLT20 |
-| 7 | 2^221.95 / 2^218.92 | 2^90 / 2^87 | 内存/非内存子空间 PNB | Dey et al. EUROCRYPT 2022 / 2023 |
+| 7 | 2^248 / 2^237.7 / 2^230.86 | — | 早期 PNB 系列 | AFK+08 / Choudhuri–Maitra ToSC 2016 / BLT20 |
+| 7 | 2^221.95 / 2^218.92 | 2^90 / 2^87 | 内存/非内存子空间 PNB | Dey–Garai–Sarkar–Sharma EUROCRYPT 2022 / IEEE-IT 2023（论文起草时更正归属，原写"EUROCRYPT 2022 / 2023"） |
 | 7 | 2^210.3 | 2^103.3 | syncopation | Wang et al. CRYPTO 2023 |
 | 7 | 2^192.89 | 2^93.79 | PNB + 线性分解 | Dey, IEEE-IT 2024 |
 | 7 | 2^189.7 | 2^102.63 | 4 轮区分器的 DL hull（2^−34.15 → 2^−32.2） | Xu et al. ToSC 2024 |

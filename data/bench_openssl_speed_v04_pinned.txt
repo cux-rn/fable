@@ -1,0 +1,5 @@
+openssl: D:\Git\mingw64\bin\openssl.EXE OpenSSL 3.5.4 30 Sep 2025 (Library: OpenSSL 3.5.4 30 Sep 2025)
+ChaCha20-Poly1305   441696.20k   653886.28k  1251681.69k  2274172.97k  2349708.63k  2367361.11k
+chacha20-poly1305    16 KiB blocks: 2.367 GB/s   (1 KiB: 2.274, 8 KiB: 2.350)
+AES-256-GCM      89707.12k   346762.16k  1162622.97k  3063425.71k  5848476.79k  6072018.14k
+aes-256-gcm          16 KiB blocks: 6.072 GB/s   (1 KiB: 3.063, 8 KiB: 5.848)

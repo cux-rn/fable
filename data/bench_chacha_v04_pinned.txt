@@ -1,0 +1,4 @@
+pinned to logical CPU 0, priority Priority.HIGH_PRIORITY_CLASS
+cryptography 48.0.0 (OpenSSL) 1 call             0.684 s   1.570 GB/s   1.463 GiB/s
+cryptography (OpenSSL) 64 KiB chunks             0.554 s   1.937 GB/s   1.804 GiB/s
+pynacl 1.6.2 (libsodium) 1 call                  1.425 s   0.754 GB/s   0.702 GiB/s

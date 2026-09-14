@@ -1,14 +1,23 @@
 """ChaCha20-Poly1305 reference throughput on this machine (single thread), for comparison with
-Fable-Stream. Two backends: `cryptography` (OpenSSL) and `pynacl` (libsodium).
-Measures (a) one 1 GiB message in a single AEAD call, and (b) 64 KiB chunks in a loop
-(same chunking as Fable-Stream, includes per-call overhead).
+Fable-Stream. Backends: `cryptography` (OpenSSL) and `pynacl` (libsodium).
+The process is pinned to logical CPU 0 and raised to HIGH priority with psutil, matching the
+Fable benchmarks (c/bench_stream.c). Measures (a) one 1 GiB message in a single AEAD call and
+(b) 64 KiB pieces in a loop (same chunking as Fable-Stream, includes per-call overhead).
 Run: python tools/bench_chacha.py [MiB=1024]
 """
 import os, sys, time
+try:
+    import psutil
+    p = psutil.Process()
+    p.cpu_affinity([0])
+    if os.name == 'nt':
+        p.nice(psutil.HIGH_PRIORITY_CLASS)
+    print('pinned to logical CPU 0, priority', p.nice())
+except Exception as e:
+    print('psutil pinning unavailable:', e)
 MiB = int(sys.argv[1]) if len(sys.argv) > 1 else 1024
 data = os.urandom(MiB << 20)
 key = os.urandom(32); nonce = os.urandom(12)
-res = []
 
 
 def bench(name, fn, reps=3):
@@ -17,7 +26,6 @@ def bench(name, fn, reps=3):
         t0 = time.perf_counter(); fn(); dt = time.perf_counter() - t0
         best = min(best, dt)
     bps = len(data) / best
-    res.append((name, best, bps))
     print('%-46s %7.3f s  %6.3f GB/s  %6.3f GiB/s' % (name, best, bps / 1e9, bps / 2 ** 30), flush=True)
 
 
@@ -36,12 +44,5 @@ try:
     import nacl, nacl.bindings as nb
     bench('pynacl %s (libsodium) 1 call' % nacl.__version__,
           lambda: nb.crypto_aead_chacha20poly1305_ietf_encrypt(data, None, nonce, key))
-    def chunked2():
-        for i in range(0, len(data), 65536):
-            nb.crypto_aead_chacha20poly1305_ietf_encrypt(data[i:i + 65536], None, nonce, key)
-    bench('pynacl (libsodium) 64 KiB chunks', chunked2)
-    # plain ChaCha20 stream (no Poly1305) for reference
-    n8 = os.urandom(8)
-    bench('libsodium chacha20 stream only (no MAC)', lambda: nb.crypto_stream_chacha20_xor(data, n8, key))
 except Exception as e:
     print('pynacl unavailable:', e)

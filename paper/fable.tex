@@ -636,20 +636,21 @@ set & path & threads & GB/s & cpb & speed-up\\
 \end{tabular}
 \end{table}
 
-\paragraph{Comparison.} Table~\ref{tab:cmp} shows ChaCha20-Poly1305 on the same machine and in the same session. The OpenSSL~3.5 figures were obtained through the \texttt{cryptography} Python package (whose wheel bundles OpenSSL) on a 1\,GiB buffer, once as a single call and once as a loop over 64\,KiB pieces (the loop is faster, presumably from cache effects), and through \texttt{openssl speed} on 16\,KiB blocks; these runs were not pinned. The libsodium figure comes from the \texttt{pynacl} wheel, whose bundled build evidently lacks the AVX2 path, and is listed only to explain why it is not used as a reference. The default \Fable parameter set is on par with OpenSSL's ChaCha20-Poly1305 (2.00 against 1.8--2.3\,GB/s), and \FableF is 10--40\,\% faster; both include authentication.
+\paragraph{Comparison.} Table~\ref{tab:cmp} shows ChaCha20-Poly1305 and AES-256-GCM on the same machine, measured in the same session as Table~\ref{tab:stream} with the process pinned to logical CPU 0 at high priority (via \texttt{psutil}), i.e.\ under the same conditions as the \Fable runs. The OpenSSL~3.5 figures were obtained through the \texttt{cryptography} Python package (whose wheel bundles OpenSSL) on a 1\,GiB buffer, once as a single call and once as a loop over 64\,KiB pieces (the loop is faster, presumably from cache effects), and through \texttt{openssl speed} on 16\,KiB blocks. The libsodium figure comes from the \texttt{pynacl} wheel, whose bundled build evidently lacks the AVX2 path, and is listed only to explain why it is not used as a reference. The default \Fable parameter set is on par with OpenSSL's ChaCha20-Poly1305 (2.00 against 1.57--2.37\,GB/s depending on the measurement), and \FableF is 7--60\,\% faster; both include authentication. AES-256-GCM with AES-NI and \texttt{PCLMULQDQ} is three times faster than either. This places \Fable in the niche of ChaCha20: platforms without AES acceleration, constant time at no cost, and---beyond ChaCha20-Poly1305---a random-safe nonce and key commitment; where AES-NI is available and those properties are not needed, AES-GCM and AEGIS~\cite{AEGIS13} are faster.
 
 \begin{table}[htb]
 \centering
-\caption{ChaCha20-Poly1305 on the same machine, single thread, 1\,GiB (\texttt{data/bench\_chacha\_v03.txt}, \texttt{bench\_openssl\_speed\_v03.txt}).}
+\caption{Reference AEADs on the same machine, single thread pinned to logical CPU 0 at high priority (\texttt{data/bench\_chacha\_v04\_pinned.txt}, \texttt{bench\_openssl\_speed\_v04\_pinned.txt}).}
 \label{tab:cmp}
 \begin{tabular}{lr}
 \toprule
 implementation & GB/s\\
 \midrule
-OpenSSL 3.5 (\texttt{cryptography} 48), one call & 1.81\\
-OpenSSL 3.5, 64\,KiB pieces & 2.27\\
-OpenSSL 3.5.4 \texttt{speed -evp}, 16\,KiB blocks & 1.81\\
-libsodium (\texttt{pynacl} 1.6.2 build, no AVX2 path) & 0.69\\
+ChaCha20-Poly1305, OpenSSL 3.5 (\texttt{cryptography} 48), one 1\,GiB call & 1.57\\
+ChaCha20-Poly1305, OpenSSL 3.5, 64\,KiB pieces & 1.94\\
+ChaCha20-Poly1305, OpenSSL 3.5.4 \texttt{speed -evp}, 16\,KiB blocks & 2.37\\
+AES-256-GCM, OpenSSL 3.5.4 \texttt{speed -evp}, 16\,KiB blocks (AES-NI) & 6.07\\
+ChaCha20-Poly1305, libsodium (\texttt{pynacl} 1.6.2 build, no AVX2 path) & 0.75\\
 \Fable, AVX2 $\times 8$ (Table~\ref{tab:stream}) & 2.00\\
 \FableF, AVX2 $\times 8$ & 2.53\\
 \bottomrule
@@ -663,7 +664,20 @@ No ARM/NEON implementation exists (the transposed eight-lane design maps to four
 % =====================================================================
 \section{Conclusion and Open Problems}
 \label{sec:conclusion}
-% TODO (section 6)
+
+\Fable puts one new object on the table---a 512-bit ARX permutation that is the \ChaCha double round with round constants---and builds everything else from constructions with existing proofs: a keyed duplex whose tag is the truncated output of the finalising permutation and therefore commits to the key, the nonce, the associated data and the message at no extra cost; a STREAM mode whose chunks are independent enough to fill eight AVX2 lanes and to be decrypted online; and a sponge hash. The first-party analysis gives exact one-round trail optima, SAT lower bounds for two rounds, a split bound of $2^{-\BoundEight}$ on any forgery trail through the default data phase, a differential-linear calibration showing that the constants do not alter the \ChaCha bias envelope (so that the $2.1\times$ and $3.2\times$ round-count margins can be read against the \ChaCha literature), a hull enumeration, rotational-XOR, symmetry and slide checks, and mode-level bounds; the AVX2 implementation runs at 2.00\,GB/s single-threaded, on par with OpenSSL's ChaCha20-Poly1305 on the same machine, and 2.53\,GB/s for \FableF.
+
+\paragraph{Open problems}, in the order in which we think they matter:
+\begin{enumerate}
+\item \emph{Two-round optima and clustering.} The $2^{-\BoundEight}$ bound rests on two SAT lower bounds ($\WrateTwo$ rate-restricted, $\WuncTwo$ unconstrained) that were stopped, not completed, and it bounds trails, not differentials. Finding the exact two-round optima, and estimating how many trails share the input/output differences of the best ones, would say whether the $\the\numexpr\BoundEight-128\relax$-bit margin over $2^{-128}$ is real. Every bit gained on both two-round bounds adds four bits to the $\PP{8}$ bound.
+\item \emph{A dedicated attack on the data phase.} We calibrated \FableP against \ChaCha but did not attempt a differential-linear or PNB-style attack in the duplex model itself, where the adversary controls a 256-bit rate difference, sees only 256 output bits and faces a 256-bit secret capacity. Whether that model is easier or harder than the \ChaCha PRF model for 16 single rounds is the question the round count depends on.
+\item \emph{Algebraic and cube attacks on initialisation.} The initialisation permutation has a 64-bit constant prefix, a 256-bit key and a 192-bit chosen nonce; cube and conditional-cube attacks on 24 single rounds have not been evaluated.
+\item \emph{\FableHash.} Only the flat sponge claim inherited from the permutation is made; collision and preimage attacks on reduced rounds of the hash have not been studied.
+\item \emph{NEON and short messages.} No ARM implementation exists, and the latency of a single message shorter than a chunk, where the two $\PP{12}$ calls dominate, has not been measured.
+\item \emph{Side channels.} The constant-time properties are argued from the code and have not been tested on hardware.
+\end{enumerate}
+
+\paragraph{Status.} All analysis reported here is first-party; no third party has examined \Fable, and the differential bounds beyond two rounds are split bounds rather than direct ones. \Fable must not be used to protect real data until independent cryptanalysis has been published. The specification, the reference and C/AVX2 implementations, every script and every raw data file behind the numbers in this paper, and the analysis log that records what was tried and what failed, are available at \texttt{<repository URL>}; a preprint is at \texttt{<ePrint URL>}. We invite analysis of the permutation, of the rate-restricted duplex model, and of the claims in \S\ref{sec:security}.
 
 \bibliographystyle{alpha}
 \bibliography{refs}

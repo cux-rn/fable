@@ -585,3 +585,27 @@ python sat/fable_lin.py  perm --rounds 2 --rot 16,12,8,7 --kstart 19 --solver ca
 | 11:36（无约束 k≤31 UNSAT，11731 s） | ≥ 40 | **≥ 32** | ≥ 19 | 2^-136 |
 
 **论文**：`paper/fable.tex`（IACR ToSC `iacrtrans` 类）、`paper/refs.bib`。逐节起草，每节经作者审阅后再写下一节；所有数字取自本日志。
+
+---
+
+## 2026-09-14 — v0.4 补充：绑核复测 ChaCha20-Poly1305 与 AES-256-GCM 对照
+
+**方法**：`tools/bench_chacha.py`（改为用 psutil 把进程绑到逻辑 CPU0 并设 HIGH 优先级，与 `c/bench_stream.c` 条件一致）、`tools/bench_openssl_pinned.py`（以同样绑核/优先级启动 `openssl speed -evp chacha20-poly1305` 与 `-evp aes-256-gcm`，3 秒/块长）。同机、同会话（三个 BelowNormal 求解仍在后台）。原始输出：`data/bench_chacha_v04_pinned.txt`、`data/bench_openssl_speed_v04_pinned.txt`。
+
+**复现**：
+```
+python tools/bench_chacha.py 1024
+python tools/bench_openssl_pinned.py 3
+```
+
+| 实现 | GB/s（绑核） | v0.3 阶段 2 未绑核值 |
+|---|---|---|
+| ChaCha20-Poly1305，OpenSSL 3.5（cryptography 48），1 次调用 1 GiB | **1.57** | 1.81 |
+| ChaCha20-Poly1305，OpenSSL 3.5，64 KiB 分块循环 | **1.94** | 2.27 |
+| ChaCha20-Poly1305，OpenSSL 3.5.4 `speed -evp` 16 KiB | **2.37** | 1.81 |
+| **AES-256-GCM**，OpenSSL 3.5.4 `speed -evp` 16 KiB（AES-NI + PCLMULQDQ） | **6.07** | — |
+| ChaCha20-Poly1305，libsodium（pynacl 内置，无 AVX2 路径） | 0.75 | 0.69 |
+| Fable AVX2 ×8（v0.3 阶段 2） | 2.00 | — |
+| Fable-f AVX2 ×8 | 2.53 | — |
+
+**判断**：绑核后 OpenSSL 的三个数字为 1.57～2.37 GB/s（Python 驱动的两项略降、`speed` 略升），Fable 2.00 GB/s 仍在该区间内，"与 ChaCha20-Poly1305 持平"的结论不变；Fable-f 2.53 比其中最高值快 7%、比 1 次调用快 60%。AES-256-GCM 在 AES-NI 上 6.07 GB/s，是两者的 3 倍：Fable 的定位是 ChaCha20 的生态位（无 AES 加速平台、零成本恒定时间、长 nonce 与承诺），有 AES-NI 且不需要这些性质时 AES-GCM/AEGIS 更快。论文第 5 节对照表与结论已按此更新。

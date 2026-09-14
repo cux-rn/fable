@@ -1,1 +1,5 @@
 lin_perm_r2_rot16_12_8_7: vars=10688 clauses=43904 weight_lits=1984
+  k<=19: UNSAT (18672.0s)
+  k<=20: SAT (16.9s)
+RESULT lin_perm_r2_rot16_12_8_7: weight >= 20, best trail weight = 20, optimal=True (18689.2s)
+wrote data/lin/lin_r2_v04.json

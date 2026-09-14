@@ -17,5 +17,14 @@ paper/*.out
 paper/*.synctex.gz
 paper/build.log
 data/**/*.err
+examples/**/bin/
+examples/**/obj/
+examples/**/*.class
+examples/**/fable_example
+examples/**/fable_go
+examples/**/fable_rs
+examples/**/fable
+examples/rust/fable.exe
+examples/rust/*.pdb
 data/diff/screen_q_all.csv
 data/diff/screen_r1_all.csv

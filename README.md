@@ -18,6 +18,7 @@ Fable 是一个 512 bit ARX 置换（ChaCha 双轮 + 轮常量注入）及其上
 - `data/` — 论文与日志中每个数字的原始数据（雪崩计数、SAT 结果与求解日志、筛选 CSV、基准输出）
 - `ANALYSIS-LOG.md` — 分析日志：每项结论的复现命令、原始数据路径、判断，以及未做的事
 - `reproduce.sh` — 汇总全部复现命令（`--quick` 跳过小时级 SAT 长跑）
+- `examples/` — 多语言自包含示例实现（C、C++、Java、Lua、Go、Rust、JavaScript、C#），各自内嵌向量自检，`bash examples/run_all.sh` 一键验证
 
 ## 运行
 

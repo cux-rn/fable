@@ -119,8 +119,10 @@ This is the \ChaCha quarter-round.
 \paragraph{Round.} Round $i$ ($0 \le i \le 11$) consists of constant injection, a column step and a diagonal step:
 \begin{align*}
 &S[0] \mathrel{\oplus}= \mathrm{RC}[i];\qquad S[5] \mathrel{\oplus}= \mathrm{RC}[i] \rotl 16;\\
-&Q(S[0],S[4],S[8],S[12]);\; Q(S[1],S[5],S[9],S[13]);\; Q(S[2],S[6],S[10],S[14]);\; Q(S[3],S[7],S[11],S[15]);\\
-&Q(S[0],S[5],S[10],S[15]);\; Q(S[1],S[6],S[11],S[12]);\; Q(S[2],S[7],S[8],S[13]);\; Q(S[3],S[4],S[9],S[14]).
+&Q(S[0],S[4],S[8],S[12]);\quad Q(S[1],S[5],S[9],S[13]);\\
+&Q(S[2],S[6],S[10],S[14]);\quad Q(S[3],S[7],S[11],S[15]);\\
+&Q(S[0],S[5],S[10],S[15]);\quad Q(S[1],S[6],S[11],S[12]);\\
+&Q(S[2],S[7],S[8],S[13]);\quad Q(S[3],S[4],S[9],S[14]).
 \end{align*}
 The column and diagonal steps together are the \ChaCha double round.
 
@@ -140,7 +142,7 @@ Two parameter sets share the permutation, the constants, the mode and the key fo
 Set & init/final & data phase & $\mathrm{IV}_1$ & Intended use\\
 \midrule
 \Fable (default) & $\PP{12}$ & $\PP{8}$ & \texttt{0x012020C8} & general purpose\\
-\FableF & $\PP{12}$ & $\PP{6}$ & \texttt{0x012020C6} & throughput first; ChaCha12-level margin\\
+\FableF & $\PP{12}$ & $\PP{6}$ & \texttt{0x012020C6} & throughput first (ChaCha12 margin)\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -217,7 +219,7 @@ Every choice below is tied to an experiment or a proof in \S\ref{sec:security}; 
 Let $\mathcal{V} = \{S : S[4j+k] = S[4j] \text{ for all } j,k \in \{0,1,2,3\}\}$ be the set of states whose four columns are identical ($|\mathcal{V}| = 2^{128}$). Then $F_0(\mathcal{V}) = \mathcal{V}$.
 \end{lemma}
 \begin{proof}
-For $S \in \mathcal{V}$ the four column quarter-rounds $Q(S[j],S[4{+}j],S[8{+}j],S[12{+}j])$, $j = 0,\ldots,3$, receive the same input $(S[0],S[4],S[8],S[12])$, hence produce the same output, so the state after the column step is again in $\mathcal{V}$. For such a state the four diagonal quarter-rounds $Q(S[0],S[5],S[10],S[15])$, $Q(S[1],S[6],S[11],S[12])$, $Q(S[2],S[7],S[8],S[13])$, $Q(S[3],S[4],S[9],S[14])$ also receive identical inputs---each diagonal picks one word from each row, and all words of a row are equal---so the diagonal step preserves $\mathcal{V}$ as well.
+For $S \in \mathcal{V}$ the four column quarter-rounds $Q(S[j],\allowbreak S[4{+}j],\allowbreak S[8{+}j],\allowbreak S[12{+}j])$, $j = 0,\ldots,3$, receive the same input $(S[0],\allowbreak S[4],\allowbreak S[8],\allowbreak S[12])$, hence produce the same output, so the state after the column step is again in $\mathcal{V}$. For such a state the four diagonal quarter-rounds $Q(S[0],S[5],S[10],S[15])$, $Q(S[1],S[6],S[11],S[12])$, $Q(S[2],S[7],S[8],S[13])$, $Q(S[3],S[4],S[9],S[14])$ also receive identical inputs---each diagonal picks one word from each row, and all words of a row are equal---so the diagonal step preserves $\mathcal{V}$ as well.
 \end{proof}
 
 The all-zero state is a fixed point of $F_0$ (it lies in $\mathcal{V}$ and $Q(0,0,0,0) = 0$), and $\mathcal{V}$ is the only ``large'' symmetric class we found to be invariant: the classes ``four identical rows'' and ``all sixteen words equal'' are left after one round. A constant XORed into a single word $S[0]$ already makes column 0 differ from columns 1--3; \FableP injects into two words, $S[0]$ and $S[5]$, which lie in different columns (0 and 1), different rows (0 and 1) and on the same diagonal, so that in one round the constant enters two of the four column quarter-rounds and one diagonal quarter-round, and the two injections never cancel: $\mathrm{RC}[i] \oplus (\mathrm{RC}[i] \rotl 16) \neq 0$ for all $i$ and $\mathrm{RC}[i] \neq \mathrm{RC}[j] \rotl 16$ for all $i,j$.
@@ -262,7 +264,7 @@ All results in this section are first-party and reproducible: every number is ta
 \centering
 \caption{Avalanche after $n$ rounds, $5\times10^5$ states per round count. ``Pairs'' counts the $512\times512$ input/output bit pairs.}
 \label{tab:avalanche}
-\small
+\footnotesize
 \begin{tabular}{crrrrrr}
 \toprule
 $n$ & mean $p$ & $\max|p-\tfrac12|$ & pairs $>0.02$ & pairs $>0.01$ & pairs $>0.005$ & never-flipping pairs\\
@@ -361,7 +363,7 @@ segments (rounds: bound used) & total weight\\
 
 \subsection{Rotation-constant screening}
 \label{sec:rotscreen}
-\paragraph{Model.} Candidates $(r_0,r_1,r_2,r_3) \in \{0,\ldots,31\}^4$ were ranked by the minimum trail weight of increasingly large pieces of \FableP (\texttt{sat/rot\_screen\_sat.py}, data \texttt{data/diff/screen\_*.csv(.gz)}), with a one-round avalanche statistic as tie-breaker.
+\paragraph{Model.} Candidates $(r_0,r_1,r_2,r_3) \in \{0,\ldots,31\}^4$ were ranked by the minimum trail weight of increasingly large pieces of \FableP (\path{sat/rot_screen_sat.py}, data \path{data/diff/screen_*.csv(.gz)}), with a one-round avalanche statistic as tie-breaker.
 
 \begin{table}[htb]
 \centering
@@ -388,7 +390,7 @@ two rounds, thresholds 16/20/24 & top 20 by avalanche + baseline & all 21 have w
 \centering
 \caption{Top of the two-round ranking (order by one-round avalanche mean; all two-round weights $\geq 25$).}
 \label{tab:top8}
-\small
+\footnotesize
 \begin{tabular}{clcccc}
 \toprule
 rank & $(r_0,r_1,r_2,r_3)$ & 1.5-round weight & 2-round weight & avalanche mean & SIMD-friendly\\
@@ -439,16 +441,20 @@ rounds & time & data & reference\\
 \end{tabular}
 \end{table}
 
-\paragraph{Experiment.} To check that the round constants do not change the differential-linear behaviour, we measured all single-bit differential-linear biases $\varepsilon(i,j) = \Pr[\text{output bit } j \text{ unchanged when input bit } i \text{ is flipped}] - \tfrac12$ over $2^{22}$ random states per input bit, for 1--4 single rounds (constants injected before each column step, using the same suffix of $\mathrm{RC}$ as the corresponding $\PP{n}$), in three variants: \textsf{const} (\FableP as specified), \textsf{noconst} (all constants zero, i.e.\ the bare \ChaCha round structure on a random state) and \textsf{chacha} (genuine \ChaCha state layout: words 0--3 fixed to the $\sigma$ constants, key/counter/nonce random, differences only in words 12--15, the published attack model) (\texttt{c/dl\_bias.c}, \texttt{data/dl/}). The noise level is $\sigma = 2^{-13}$ and the expected extreme over $2^{18}$ pairs is $4.9\sigma \approx 2^{-9.7}$.
+\paragraph{Experiment.} To check that the round constants do not change the differential-linear behaviour, we measured all single-bit differential-linear biases
+\[
+\varepsilon(i,j) = \Pr[\text{output bit } j \text{ unchanged when input bit } i \text{ is flipped}] - \tfrac12
+\]
+over $2^{22}$ random states per input bit, for 1--4 single rounds (constants injected before each column step, using the same suffix of $\mathrm{RC}$ as the corresponding $\PP{n}$), in three variants: \textsf{const} (\FableP as specified), \textsf{noconst} (all constants zero, i.e.\ the bare \ChaCha round structure on a random state) and \textsf{chacha} (genuine \ChaCha state layout: words 0--3 fixed to the $\sigma$ constants, key/counter/nonce random, differences only in words 12--15, the published attack model); code \path{c/dl_bias.c}, data \path{data/dl/}. The noise level is $\sigma = 2^{-13}$ and the expected extreme over $2^{18}$ pairs is $4.9\sigma \approx 2^{-9.7}$.
 
 \begin{table}[htb]
 \centering
 \caption{Maximum single-bit differential-linear bias $|\varepsilon|$; ``rate$\to$rate'' restricts both bits to $S[0..7]$.}
 \label{tab:dlbias}
-\small
+\footnotesize
 \begin{tabular}{cccccc}
 \toprule
-single rounds & \Fable rounds & \textsf{const} & \textsf{const}, rate$\to$rate & \textsf{noconst} & \textsf{chacha}\\
+single r. & \Fable r. & \textsf{const} & \textsf{const}, rate$\to$rate & \textsf{noconst} & \textsf{chacha}\\
 \midrule
 1 & 0.5 & $0.5$ (deterministic) & $0.5$ & $0.5$ & --\\
 2 & 1 & $0.5$ (deterministic) & $0.5$ & $0.5$ & --\\
@@ -495,7 +501,7 @@ weight cap & trails & positive / negative sign & $|\text{hull}|$ & vs.\ best tra
 
 \subsection{Constants, symmetry, slide and fixed points}
 \label{sec:constcheck}
-The claims of \S\ref{sec:constants} were checked by \texttt{tools/check\_constants.py} (\texttt{data/constants\_check.txt}):
+The claims of \S\ref{sec:constants} were checked by \path{tools/check_constants.py} (output \path{data/constants_check.txt}):
 \begin{enumerate}
 \item the twelve constants recomputed from $\ln p_i$ with 60-digit precision match the table; they are pairwise distinct, none equals another rotated by any amount, no $\mathrm{RC}[i]$ equals $\mathrm{RC}[j]\rotl 16$, the minimum pairwise Hamming distance is 9, and $\mathrm{RC}[i]\oplus(\mathrm{RC}[i]\rotl 16) \neq 0$ for all $i$;
 \item with constants set to zero, the all-zero state is a fixed point of 12 rounds and the column-symmetric subspace $\mathcal{V}$ is preserved by 1--12 rounds, whereas the row-symmetric and all-equal classes are left after one round;
@@ -516,7 +522,7 @@ Model $\PP{12}$ as a random permutation $\pi$ of $\{0,1\}^{512}$ to which the ad
 \]
 \end{theorem}
 \begin{proof}[Proof sketch]
-Let $X, X'$ be the two pre-finalisation states. (i) If $X \neq X'$, then $\mathrm{trunc}_\tau(\pi(X)) = \mathrm{trunc}_\tau(\pi(X'))$: a collision of the $\tau$-bit truncation of $\pi$ on two distinct queried inputs, probability at most $\binom{q}{2}/2^\tau$ up to the negligible bias of a truncated permutation. (ii) If $X = X'$ and $K \neq K'$, then $Y_R = Y'_R$ and $Y_C \oplus Y'_C = K\oplus K'$: two duplex paths through $\pi$, ending in different queries, whose final states satisfy a fixed 512-bit relation, probability at most $\binom{q}{2}/2^{512}$. (If $K = K'$ and the tuples differ elsewhere, $X = X'$ is a full internal state collision, covered by the same count.) (iii) Otherwise the adversary has guessed the 256-bit capacity of some path, probability at most $q/2^{256}$. A successful output is witnessed by one of the three events, and values of $\pi$ that were never queried are uniform and cannot produce an equal tag except by the same counting.
+Let $X, X'$ be the two pre-finalisation states. (i) If $X \neq X'$, then $\mathrm{trunc}_\tau(\pi(X)) = \allowbreak \mathrm{trunc}_\tau(\pi(X'))$: a collision of the $\tau$-bit truncation of $\pi$ on two distinct queried inputs, probability at most $\binom{q}{2}/2^\tau$ up to the negligible bias of a truncated permutation. (ii) If $X = X'$ and $K \neq K'$, then $Y_R = Y'_R$ and $Y_C \oplus Y'_C = K\oplus K'$: two duplex paths through $\pi$, ending in different queries, whose final states satisfy a fixed 512-bit relation, probability at most $\binom{q}{2}/2^{512}$. (If $K = K'$ and the tuples differ elsewhere, $X = X'$ is a full internal state collision, covered by the same count.) (iii) Otherwise the adversary has guessed the 256-bit capacity of some path, probability at most $q/2^{256}$. A successful output is witnessed by one of the three events, and values of $\pi$ that were never queried are uniform and cannot produce an equal tag except by the same counting.
 \end{proof}
 
 \begin{corollary}

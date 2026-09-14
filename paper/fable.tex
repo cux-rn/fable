@@ -26,8 +26,9 @@
 % theorem, lemma, corollary, claim environments are provided by iacrtrans.cls
 
 % ---- SAT lower bounds still being raised in the background: change ONLY these definitions ----
-\newcommand{\WrateTwo}{39}   % two-round trail weight, rate-in model (SAT lower bound)
-\newcommand{\WuncTwo}{31}    % two-round trail weight, unconstrained (SAT lower bound)
+\newcommand{\WrateTwo}{42}   % two-round trail weight, rate-in model (SAT lower bound; k<=41 UNSAT, search stopped 2026-09-14)
+\newcommand{\WuncTwo}{33}    % two-round trail weight, unconstrained (SAT lower bound; k<=32 UNSAT, search stopped 2026-09-14)
+\newcommand{\WrateThree}{\the\numexpr\WrateTwo+2\relax}   % three-round rate-in split bound (SAT itself reached 43)
 \newcommand{\WlinTwo}{20}    % two-round linear trail weight (EXACT since 2026-09-14: k<=19 UNSAT, trail of weight 20 found)
 \newcommand{\BoundEight}{\the\numexpr\WrateTwo+3*\WuncTwo\relax}   % P_8 forgery split bound (2+2+2+2)
 \newcommand{\BoundSix}{\the\numexpr\WrateTwo+2*\WuncTwo\relax}     % P_6 forgery split bound (2+2+2)
@@ -304,7 +305,7 @@ A difference confined to the most significant bit passes through a modular addit
 \end{proof}
 For $(16,12,8,7)$ the SAT search returns exactly this trail and $10^5$ random samples confirm it; the search over all $32^4$ rotation choices (\S\ref{sec:rotscreen}) returns weight 0 for each, as the lemma predicts. This is the known behaviour of the \ChaCha quarter-round, inherited unchanged.
 
-\paragraph{Unconstrained model.} Table~\ref{tab:diffunc} gives the minimum trail weight of $\PP{n}$ when the input difference may be anywhere in the 512-bit state. The one-round optimum (weight 2, $2^{-2}$, verified: $2\times10^5$ samples hit at rate $0.2498$) places MSB-derived differences in two columns, cancels them to two MSBs in the column step and pays 2 in the diagonal step. The two-round search proved ``no trail of weight $\leq 30$'' after $9.4$ CPU-hours (the last level alone took $7657$\,s) and was stopped; the optimum is $\geq \WuncTwo$, no trail is known. Three and four rounds are split bounds only.
+\paragraph{Unconstrained model.} Table~\ref{tab:diffunc} gives the minimum trail weight of $\PP{n}$ when the input difference may be anywhere in the 512-bit state. The one-round optimum (weight 2, $2^{-2}$, verified: $2\times10^5$ samples hit at rate $0.2498$) places MSB-derived differences in two columns, cancels them to two MSBs in the column step and pays 2 in the diagonal step. The two-round search proved ``no trail of weight $\leq 30$'' after $9.4$ CPU-hours, was resumed from that bound and proved ``$\leq 32$'' unsatisfiable (the last level alone took $20\,729$\,s) before being stopped; the optimum is $\geq \WuncTwo$, no trail is known. Three and four rounds are split bounds only.
 
 \begin{table}[htb]
 \centering
@@ -340,7 +341,7 @@ Table~\ref{tab:diffrate} summarises. The rate-restricted one-round optimum is 22
 constraints & $\tfrac12$ round & 1 round & 2 rounds & 3 rounds\\
 \midrule
 none & 0 & 2 (exact) & $\geq \WuncTwo$ & $\geq \the\numexpr 2+\WuncTwo\relax$ (split)\\
-rate-in & 2 (exact) & 22 (exact, verified) & $\geq \WrateTwo$ & $\geq 43$\\
+rate-in & 2 (exact) & 22 (exact, verified) & $\geq \WrateTwo$ & $\geq \WrateThree$ (split; SAT reached 43)\\
 rate-in + rate-out-nonzero & -- & 22 (exact) & -- & --\\
 rate-in + cap-out-zero & imp. & $\geq 43$ & $\geq 41$ & --\\
 cap-out-zero only & -- & 6 (exact, verified) & -- & --\\
@@ -363,12 +364,12 @@ segments (rounds: bound used) & total weight\\
 2 (rate-in $\geq \WrateTwo$) + 2 (none $\geq \WuncTwo$) + 2 (none $\geq \WuncTwo$) + 2 (none $\geq \WuncTwo$) & \textbf{\BoundEight}\\
 1 (rate-in 22) + 2 (\WuncTwo) + 2 (\WuncTwo) + 2 (\WuncTwo) + 1 (none 2) & \the\numexpr 24+3*\WuncTwo\relax\\
 2 (rate-in $\geq \WrateTwo$) + 2 (\WuncTwo) + 2 (\WuncTwo) + 1 (none 2) + 1 (cap-out-zero 6) & \the\numexpr\WrateTwo+2*\WuncTwo+8\relax\\
-3 (rate-in $\geq 43$) + 2 (\WuncTwo) + 2 (\WuncTwo) + 1 (none 2) & \the\numexpr 45+2*\WuncTwo\relax\\
+3 (rate-in $\geq \WrateThree$) + 2 (\WuncTwo) + 2 (\WuncTwo) + 1 (none 2) & \the\numexpr\WrateThree+2*\WuncTwo+2\relax\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\paragraph{Result.} Every differential \emph{trail} usable for a forgery or an observable keystream difference through the \Fable data phase has probability at most $2^{-\BoundEight}$; through \FableF's $\PP{6}$ (segments $2+2+2$: $\WrateTwo+\WuncTwo+\WuncTwo$) at most $2^{-\BoundSix}$. These are trail bounds: the probability of the corresponding \emph{differential}---the sum over all trails with the same input and output difference---is not bounded by them, and the margin over the $2^{-128}$ target is only $\the\numexpr\BoundEight-128\relax$ bits. The two two-round bounds that determine the result ($\WrateTwo$ and $\WuncTwo$) are SAT lower bounds still being raised in the background at the time of writing; each additional bit on both raises the $\PP{8}$ bound by 4 bits.
+\paragraph{Result.} Every differential \emph{trail} usable for a forgery or an observable keystream difference through the \Fable data phase has probability at most $2^{-\BoundEight}$; through \FableF's $\PP{6}$ (segments $2+2+2$: $\WrateTwo+\WuncTwo+\WuncTwo$) at most $2^{-\BoundSix}$. These are trail bounds: the probability of the corresponding \emph{differential}---the sum over all trails with the same input and output difference---is not bounded by them, and the margin over the $2^{-128}$ target is $\the\numexpr\BoundEight-128\relax$ bits. The two two-round bounds that determine the result ($\WrateTwo$ and $\WuncTwo$) are SAT lower bounds whose searches were stopped, not completed (the last proven levels took $12\,328$\,s and $20\,729$\,s respectively); each additional bit on both would raise the $\PP{8}$ bound by 4 bits.
 
 \subsection{Rotation-constant screening}
 \label{sec:rotscreen}

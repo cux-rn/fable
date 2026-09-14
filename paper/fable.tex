@@ -134,6 +134,7 @@ Two parameter sets share the permutation, the constants, the mode and the key fo
 \centering
 \caption{Parameter sets. $\mathrm{IV}_1$ packs version \texttt{0x01}, key bytes \texttt{0x20}, rate bytes \texttt{0x20} and a rounds byte $(12 \ll 4)\,|\,d$.}
 \label{tab:params}
+\small
 \begin{tabular}{lcccl}
 \toprule
 Set & init/final & data phase & $\mathrm{IV}_1$ & Intended use\\
@@ -261,6 +262,7 @@ All results in this section are first-party and reproducible: every number is ta
 \centering
 \caption{Avalanche after $n$ rounds, $5\times10^5$ states per round count. ``Pairs'' counts the $512\times512$ input/output bit pairs.}
 \label{tab:avalanche}
+\small
 \begin{tabular}{crrrrrr}
 \toprule
 $n$ & mean $p$ & $\max|p-\tfrac12|$ & pairs $>0.02$ & pairs $>0.01$ & pairs $>0.005$ & never-flipping pairs\\
@@ -365,7 +367,8 @@ segments (rounds: bound used) & total weight\\
 \centering
 \caption{Degeneration of the screening metrics.}
 \label{tab:screen}
-\begin{tabular}{lll}
+\small
+\begin{tabular}{p{3.4cm}p{4.0cm}p{5.6cm}}
 \toprule
 metric & coverage & result\\
 \midrule
@@ -385,6 +388,7 @@ two rounds, thresholds 16/20/24 & top 20 by avalanche + baseline & all 21 have w
 \centering
 \caption{Top of the two-round ranking (order by one-round avalanche mean; all two-round weights $\geq 25$).}
 \label{tab:top8}
+\small
 \begin{tabular}{clcccc}
 \toprule
 rank & $(r_0,r_1,r_2,r_3)$ & 1.5-round weight & 2-round weight & avalanche mean & SIMD-friendly\\
@@ -410,7 +414,7 @@ rank & $(r_0,r_1,r_2,r_3)$ & 1.5-round weight & 2-round weight & avalanche mean 
 \centering
 \caption{Key-recovery attacks on reduced-round ChaCha (256-bit key). Time and data as reported.}
 \label{tab:dllit}
-\small
+\footnotesize
 \begin{tabular}{clll}
 \toprule
 rounds & time & data & reference\\
@@ -441,6 +445,7 @@ rounds & time & data & reference\\
 \centering
 \caption{Maximum single-bit differential-linear bias $|\varepsilon|$; ``rate$\to$rate'' restricts both bits to $S[0..7]$.}
 \label{tab:dlbias}
+\small
 \begin{tabular}{cccccc}
 \toprule
 single rounds & \Fable rounds & \textsf{const} & \textsf{const}, rate$\to$rate & \textsf{noconst} & \textsf{chacha}\\
@@ -531,6 +536,7 @@ where $[F]$ is the probability that two of $F$ random 152-bit file nonces under 
 \centering
 \caption{Terms of the multi-user bound at $\mu = 2^{32}$ users, $2^{64}$ bytes per user ($M \approx 2^{91}$), $N = 2^{128}$, $q_D = 2^{64}$.}
 \label{tab:mu}
+\small
 \begin{tabular}{clll}
 \toprule
 term & governed by & value & single user ($M = 2^{59}$)\\
@@ -612,6 +618,7 @@ AVX2 $\times 8$ $\PP{12}$, core only & 805 & 3.1 & 268\\
 \centering
 \caption{\FableStream throughput, 1\,GiB, 64\,KiB chunks, best of three (\texttt{data/bench\_stream\_v03.txt}). cpb is given for single-thread runs only.}
 \label{tab:stream}
+\small
 \begin{tabular}{llcrrl}
 \toprule
 set & path & threads & GB/s & cpb & speed-up\\
@@ -639,6 +646,7 @@ set & path & threads & GB/s & cpb & speed-up\\
 \centering
 \caption{Reference AEADs on the same machine, single thread pinned to logical CPU 0 at high priority (\texttt{data/bench\_chacha\_v04\_pinned.txt}, \texttt{bench\_openssl\_speed\_v04\_pinned.txt}).}
 \label{tab:cmp}
+\small
 \begin{tabular}{lr}
 \toprule
 implementation & GB/s\\
@@ -739,7 +747,7 @@ Both models are in \texttt{sat/} of the repository (\texttt{fable\_diff.py}, \te
 \label{app:ranking}
 The 21 candidates of \S\ref{sec:rotscreen}: the 20 best by one-round avalanche among the 1338 choices tied at 1.5-round weight 12, plus the baseline. All satisfy ``no two-round trail of weight $\leq 24$'' (\texttt{data/diff/screen\_r2\_top.csv}, \texttt{screen\_r2\_top\_k24.csv}); the baseline was run further to $\geq \WuncTwo$.
 
-\begin{center}\small
+\begin{center}\footnotesize
 \begin{tabular}{clcccc}
 \toprule
 rank & $(r_0,r_1,r_2,r_3)$ & 1.5-round wt & 2-round wt & avalanche mean & never-flip pairs (4000 trials)\\

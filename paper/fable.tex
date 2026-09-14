@@ -1,7 +1,8 @@
 % Fable: a 512-bit ARX permutation with built-in authentication, key commitment and chunked parallelism
 % IACR ToSC draft. Class: iacrtrans (https://github.com/Cryptosaurus/iacrtrans). Build: latexmk -pdf fable.tex
 \PassOptionsToClass{journal=tosc}{iacrtrans}   % passed this way so the LaTeX kernel does not flag the key=value option as unused
-\documentclass[submission]{iacrtrans}
+% ePrint / camera-ready build. For an anonymous ToSC submission use: \documentclass[submission]{iacrtrans} and \anontrue below.
+\documentclass{iacrtrans}
 
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{booktabs}
@@ -37,7 +38,7 @@
 % ---- anonymity switch: \anontrue for submission (also keep the `submission' class option),
 %      \anonfalse for the camera-ready / ePrint version (and drop the `submission' class option) ----
 \newif\ifanon
-\anontrue
+\anonfalse   % ePrint version; set \anontrue (and the `submission' class option) for anonymous review
 \ifanon
   \newcommand{\RepoURL}{\texttt{<repository URL>}}
   \newcommand{\EprintURL}{\texttt{<ePrint URL>}}

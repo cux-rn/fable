@@ -17,6 +17,7 @@
 \newcommand{\FableAEAD}{\textsf{Fable-AEAD}\xspace}
 \newcommand{\FableStream}{\textsf{Fable-Stream}\xspace}
 \newcommand{\FableHash}{\textsf{Fable-Hash}\xspace}
+\newcommand{\FableXOF}{\textsf{Fable-XOF}\xspace}
 \newcommand{\ChaCha}{\textsf{ChaCha}\xspace}
 \newcommand{\PP}[1]{P_{#1}}
 \newcommand{\rotl}{\lll}
@@ -47,28 +48,31 @@ We report a first-party analysis that is fully reproducible from the accompanyin
 \section{Introduction}
 \label{sec:intro}
 
-Authenticated encryption in deployed protocols is dominated by two families: AES-GCM, which depends on hardware support for the block cipher and the field multiplication, and ChaCha20-Poly1305~\cite{RFC8439}, which runs on any CPU but pays for authentication with a second pass (Poly1305) over the data and inherits a 96-bit nonce that cannot be chosen at random. Neither is key-committing~\cite{BH22}: for both, an adversary can craft a single ciphertext that decrypts correctly under two different keys, a property that has led to concrete attacks on message franking, envelope encryption and abuse-reporting systems. Permutation-based designs such as Ascon~\cite{Ascon21} and NORX~\cite{NORX14} solve the ``single pass'' part of the problem with the keyed duplex~\cite{BDPV11}, but they were optimised for lightweight or 64-bit-word platforms respectively, and the commitment question was not a design goal.
+Authenticated encryption in deployed protocols is dominated by two families: AES-GCM, which depends on hardware support for the block cipher and the field multiplication, and ChaCha20-Poly1305~\cite{RFC8439}, which runs on any CPU but pays for authentication with a second pass (Poly1305) over the data and inherits a 96-bit nonce that cannot safely be chosen at random---the extended-nonce variant XChaCha20-Poly1305~\cite{XChaCha} repairs the latter with an extra HChaCha20 call. Neither is key-committing~\cite{BH22}: for both, an adversary can craft a single ciphertext that decrypts correctly under two different keys, a property that has led to concrete attacks on message franking, envelope encryption and abuse-reporting systems. Permutation-based designs such as Ascon~\cite{Ascon21} and NORX~\cite{NORX14} solve the ``single pass'' part of the problem with the keyed duplex~\cite{BDPV11}, but they were optimised for lightweight or 64-bit-word platforms respectively, and the commitment question was not a design goal.
 
 \Fable is an attempt to combine, in one primitive, the properties we believe a general-purpose file and stream encryption tool needs today:
 
 \begin{itemize}
 \item \textbf{A nonce that can be random.} \FableAEAD takes a 192-bit nonce. With a 152-bit random file nonce, \FableStream stays below a $2^{-73}$ collision probability for $2^{40}$ files under one key, and the caller may alternatively use a structured (counter) nonce with zero collision term (\S\ref{sec:stream}).
-\item \textbf{Key commitment for free.} The tag is the 256-bit rate part of $\PP{12}(X)$, where $X$ is the complete internal state before finalisation---a state that contains the key (injected into the capacity), the nonce, the associated data, the message and the parameter-set identifier. We prove (\S\ref{sec:commitment}) that any CMT-4 attack reduces to a collision on a truncated permutation, so a $\tau$-bit tag commits with $\tau/2$ bits of security: 128 bits for the default 256-bit tag.
+\item \textbf{Key commitment for free.} The tag is the 256-bit rate part of $\PP{12}(X)$, where $X$ is the complete internal state before finalisation---a state that contains the key (injected into the capacity), the nonce, the associated data, the message and the parameter-set identifier. We prove (\S\ref{sec:commitment}), in the ideal-permutation model, that any CMT-4 attack reduces to one of three events: a collision on the $\tau$-bit truncation of $\PP{12}$ (probability $\leq q^2/2^{\tau+1}$ after $q$ permutation queries), two executions under different keys reaching the same 512-bit state ($\leq q^2/2^{513}$), or a guess of the 256-bit capacity ($\leq q/2^{256}$); the last two are negligible, so a $\tau$-bit tag commits with $\tau/2$ bits of security---128 bits for the default 256-bit tag. This is the CTX idea of Chan and Rogaway~\cite{CR22} (commit through a hash of key, nonce, associated data and tag) realised inside the duplex, where the finalising permutation already plays the role of the hash.
 \item \textbf{Authentication in the same pass.} \FableAEAD is a keyed duplex with $r=c=256$: every 32-byte block costs one call of the data-phase permutation and nothing else. There is no second pass, no polynomial MAC, and the mode inherits the multi-user bounds of the keyed duplex~\cite{JLM14,DMV17} (\S\ref{sec:mu}).
 \item \textbf{Chunk-level parallelism.} \FableStream applies the STREAM construction~\cite{HRRV15} to 64\,KiB chunks. Chunks are independent AEAD instances, so eight of them are processed simultaneously in the eight 32-bit lanes of an AVX2 register file, with the sixteen state words kept in transposed layout for the whole AEAD; decryption is online and truncation, reordering and cross-file splicing are rejected by the STREAM reduction.
 \end{itemize}
 
 \paragraph{Why a new permutation.}
-The permutation \FableP is deliberately conservative: its round function is exactly the \ChaCha double round (column step followed by diagonal step, quarter-round rotations $(16,12,8,7)$)~\cite{Bernstein08chacha}, so that fifteen years of differential-linear cryptanalysis of \ChaCha~\cite{AFKMR08,BLT20,BBCDFLNT22,CS21,DGSS22,DGM23,WLHL23,Dey24,SDSM25,FT25,FT25b} transfers directly. The one structural change is required by the change of use: \ChaCha is a PRF whose fixed input constants break symmetry, whereas a sponge permutation receives attacker-influenced input in every word and must break symmetry \emph{inside} the round. \FableP therefore XORs a round constant into two words, $S[0]$ and $S[5]$, chosen so that they lie in different columns, different rows and on the same diagonal. We show in \S\ref{sec:constants} that without the constants the ``four identical columns'' subspace of $2^{128}$ states is invariant under every round, and that the constants leave that subspace in every one of the twelve rounds.
+The permutation \FableP is deliberately conservative: its round function is exactly the \ChaCha double round (column step followed by diagonal step, quarter-round rotations $(16,12,8,7)$)~\cite{Bernstein08chacha}, so that nearly two decades of differential-linear cryptanalysis of \ChaCha~\cite{AFKMR08,BLT20,BBCDFLNT22,CS21,DGSS22,DGM23,WLHL23,Dey24,SDSM25,FT25,FT25b} transfers, subject to the calibration in \S\ref{sec:security}. The one structural change is required by the change of use: \ChaCha is a PRF whose fixed input constants break symmetry, whereas a sponge permutation receives attacker-influenced input in every word and must break symmetry \emph{inside} the round. \FableP therefore XORs a round constant into two words, $S[0]$ and $S[5]$, chosen so that they lie in different columns, different rows and on the same diagonal. We show in \S\ref{sec:constants} that without the constants the ``four identical columns'' subspace of $2^{128}$ states is invariant under every round, and that the constants leave that subspace in every one of the twelve rounds.
 
 \paragraph{Security argument.}
-ARX permutations have no provable active-S-box bound; \FableP, like \ChaCha, even has probability-one differentials through a single quarter-round (for \emph{every} choice of rotation constants, \S\ref{sec:diff}). We therefore make no ``no characteristic above $2^{-128}$ in $n$ rounds'' claim. Instead the round counts are set by an empirical margin against the strongest published attack family on the same round function: with key recovery on 7.5 \ChaCha single rounds as the yardstick, the \Fable data phase ($\PP{8}$ = 16 single rounds) has a $2.1\times$ margin, initialisation ($\PP{12}$ = 24 single rounds) $3.2\times$, and \FableF ($\PP{6}$ = 12 single rounds) $1.6\times$, the margin of ChaCha12 as used in Adiantum~\cite{Adiantum18}. This is the same kind of argument that underlies ChaCha20 itself~\cite{Aumasson20}. Where exact statements are possible we make them: SAT-proven trail bounds, an exact key-commitment reduction, and mode-level bounds in the ideal-permutation model.
+ARX permutations have no provable active-S-box bound; \FableP, like \ChaCha, even has probability-one differentials through a single quarter-round (for \emph{every} choice of rotation constants, \S\ref{sec:diff}). We therefore make no ``no characteristic above $2^{-128}$ in $n$ rounds'' claim. Instead the round counts are set by an empirical margin against the strongest published attack family on the same round function: with key recovery on 7.5 \ChaCha single rounds as the yardstick, the \Fable data phase ($\PP{8}$ = 16 single rounds) has a $2.1\times$ margin, initialisation ($\PP{12}$ = 24 single rounds) $3.2\times$, and \FableF ($\PP{6}$ = 12 single rounds) $1.6\times$, the margin of ChaCha12 as used in Adiantum~\cite{Adiantum18}. ChaCha20's own round count was fixed by Bernstein at design time~\cite{Bernstein08salsa,Bernstein08chacha}; the question of how much margin is enough has since been debated explicitly~\cite{Aumasson20}, and we make our choice and its yardstick visible rather than settle that debate. Where exact statements are possible we make them: SAT-proven trail bounds, an exact key-commitment reduction, and mode-level bounds in the ideal-permutation model.
+
+\paragraph{Relation to existing constructions.}
+Each of the four goals above is met by some deployed or standardised scheme; the point of \Fable is to meet all four with one permutation and one pass. XChaCha20-Poly1305~\cite{XChaCha} provides a 192-bit nonce and portable performance, and becomes key-committing when wrapped with CTX~\cite{CR22} at the cost of an additional hash of the key, nonce, associated data and tag; authentication remains a second pass, and there is no built-in chunked mode. AES-GCM-SIV~\cite{RFC8452} offers nonce-misuse resistance, which \Fable does not claim, but its nonce is 96 bits, it is not key-committing, and its speed depends on AES and carry-less multiplication hardware. Ascon-128a~\cite{Ascon21} is a keyed duplex with single-pass authentication and a 128-bit key; it targets constrained platforms, its nonce is 128 bits, and its tag is XORed with the key at finalisation, which is not the direct truncated-permutation output that our commitment reduction relies on. AEGIS~\cite{AEGIS13,AEGISdraft} reaches very high throughput with AES round instructions and has a 256-bit-nonce variant; it is not designed for key commitment, and it relies on hardware AES. \Fable sits in the software-only, ARX corner of this space: a random-safe nonce, single-pass authentication, commitment from the tag itself, and chunk-level SIMD parallelism, at the price of a permutation that---unlike AES or ChaCha20---has not yet received third-party analysis.
 
 \paragraph{Contributions.}
 \begin{enumerate}
 \item The specification of \FableP, \FableAEAD, \FableStream and \FableHash with two domain-separated parameter sets and test vectors (\S\ref{sec:spec}).
 \item A design rationale that records, for each choice, the experiment that motivated it (\S\ref{sec:rationale}).
-\item A reproducible first-party analysis (\S\ref{sec:security}): avalanche with $5\times10^5$ states per round count; SAT differential bounds in the unconstrained model (1 round: $2^{-2}$ exact; 2 rounds: $\leq 2^{-31}$) and in the rate-restricted duplex model (1 round: $2^{-22}$ exact; 2 rounds: $\leq 2^{-39}$; no internal collision within half a round), combined into a split bound of $2^{-132}$ for any forgery trail through $\PP{8}$ and $2^{-101}$ through $\PP{6}$; a rotation-constant screening over all $32^4$ choices showing that single-quarter-round and one-round differential metrics cannot separate them; a differential-linear evaluation with $2^{22}$ samples per bit pair showing that the round constants do not change the bias envelope relative to the \ChaCha round structure; exact linear-trail bounds (1 round $2^{-1}$, 2 rounds $\leq 2^{-19}$) and a hull enumeration (no hull effect in 1 round, a factor $\approx 9$ in 2 rounds); rotational-XOR bounds ($\leq 2^{-419}$ for $\PP{6}$); slide and fixed-point checks; the key-commitment reduction; and multi-user STREAM bounds.
+\item A reproducible first-party analysis (\S\ref{sec:security}): avalanche with $5\times10^5$ states per round count; SAT differential bounds in the unconstrained model (1 round: $2^{-2}$ exact; 2 rounds: $\leq 2^{-31}$) and in the rate-restricted duplex model (1 round: $2^{-22}$ exact; 2 rounds: $\leq 2^{-39}$; no internal collision within half a round), combined into a split bound of $2^{-132}$ for any forgery trail through $\PP{8}$ and $2^{-101}$ through $\PP{6}$; a rotation-constant screening over all $32^4$ choices for the single-quarter-round metric and 254,576 choices for the one-round metric, showing that neither metric can separate them; a differential-linear evaluation with $2^{22}$ samples per bit pair showing that the round constants do not change the bias envelope relative to the \ChaCha round structure; exact linear-trail bounds (1 round $2^{-1}$, 2 rounds $\leq 2^{-19}$) and a hull enumeration (no hull effect in 1 round, a factor $\approx 9$ in 2 rounds); rotational-XOR bounds ($\leq 2^{-419}$ for $\PP{6}$); slide and fixed-point checks; the key-commitment reduction; and multi-user STREAM bounds.
 \item Portable C and AVX2 implementations, byte-exact against the Python reference, with throughput measurements against OpenSSL on the same machine (\S\ref{sec:impl}).
 \end{enumerate}
 
@@ -78,7 +82,116 @@ ARX permutations have no provable active-S-box bound; \FableP, like \ChaCha, eve
 % =====================================================================
 \section{Specification}
 \label{sec:spec}
-% TODO (section 2): permutation, AEAD, Stream, Hash, parameter sets, test vectors -> repository.
+
+This section is a transcription of specification v0.4 (\texttt{Fable-spec-v0.4.md} in the repository); the Python reference \texttt{fable.py} and the C implementation are the normative tie-breakers and agree bit for bit on all test vectors.
+
+\subsection{Notation}
+All words are 32-bit unsigned integers; byte strings are converted to words little-endian. $+$ denotes addition modulo $2^{32}$, $\oplus$ XOR, and $x \rotl n$ rotation of a 32-bit word to the left by $n$ positions. The state $S$ consists of sixteen words $S[0..15]$, viewed as a $4\times4$ matrix in row-major order:
+\[
+\begin{array}{cccc}
+S[0] & S[1] & S[2] & S[3]\\
+S[4] & S[5] & S[6] & S[7]\\
+S[8] & S[9] & S[10] & S[11]\\
+S[12] & S[13] & S[14] & S[15]
+\end{array}
+\]
+The \emph{rate} is $R = S[0..7]$ (256 bits) and the \emph{capacity} is $C = S[8..15]$ (256 bits). $\PP{n}$ denotes $n$ rounds of \FableP. $\mathrm{pad}(x)$ is the $10^*$ padding of a byte string $x$ with $|x| < 32$ bytes to 32 bytes: append the byte \texttt{0x80}, then zero bytes.
+
+\subsection{The permutation \FableP}
+\label{sec:perm}
+
+\paragraph{Quarter-round.} $Q(a,b,c,d)$ updates four words in place with the rotation constants $(r_0,r_1,r_2,r_3) = (16,12,8,7)$:
+\[
+\begin{array}{ll}
+a \mathrel{+}= b;\; d \mathrel{\oplus}= a;\; d \mathrel{\rotl}= r_0; &
+c \mathrel{+}= d;\; b \mathrel{\oplus}= c;\; b \mathrel{\rotl}= r_1;\\
+a \mathrel{+}= b;\; d \mathrel{\oplus}= a;\; d \mathrel{\rotl}= r_2; &
+c \mathrel{+}= d;\; b \mathrel{\oplus}= c;\; b \mathrel{\rotl}= r_3.
+\end{array}
+\]
+This is the \ChaCha quarter-round.
+
+\paragraph{Round.} Round $i$ ($0 \le i \le 11$) consists of constant injection, a column step and a diagonal step:
+\begin{align*}
+&S[0] \mathrel{\oplus}= \mathrm{RC}[i];\qquad S[5] \mathrel{\oplus}= \mathrm{RC}[i] \rotl 16;\\
+&Q(S[0],S[4],S[8],S[12]);\; Q(S[1],S[5],S[9],S[13]);\; Q(S[2],S[6],S[10],S[14]);\; Q(S[3],S[7],S[11],S[15]);\\
+&Q(S[0],S[5],S[10],S[15]);\; Q(S[1],S[6],S[11],S[12]);\; Q(S[2],S[7],S[8],S[13]);\; Q(S[3],S[4],S[9],S[14]).
+\end{align*}
+The column and diagonal steps together are the \ChaCha double round.
+
+\paragraph{Round constants.} $\mathrm{RC}[i]$ is the first 32 bits of the fractional part of $\ln p_i$, where $p_i$ is the $(i{+}1)$-th prime ($2, 3, 5, \ldots, 37$); the twelve values are listed in Appendix~\ref{app:rc}. $\PP{12}$ uses $\mathrm{RC}[0..11]$ in order. A reduced permutation $\PP{n}$ with $n<12$ uses the \emph{last} $n$ constants, $\mathrm{RC}[12-n..11]$: $\PP{8}$ uses $\mathrm{RC}[4..11]$ and $\PP{6}$ uses $\mathrm{RC}[6..11]$, so that the light permutation is a suffix of the heavy one.
+
+\subsection{Parameter sets}
+\label{sec:params}
+Two parameter sets share the permutation, the constants, the mode and the key format and differ only in the number of rounds $d$ of the data-phase permutation $\PP{d}$ and in the constant $\mathrm{IV}_1$ that encodes it (Table~\ref{tab:params}). Because $\mathrm{IV}_1$ enters the initial state, the two sets are domain-separated: outputs under the same key are unrelated.
+
+\begin{table}[htb]
+\centering
+\caption{Parameter sets. $\mathrm{IV}_1$ packs version \texttt{0x01}, key bytes \texttt{0x20}, rate bytes \texttt{0x20} and a rounds byte $(12 \ll 4)\,|\,d$.}
+\label{tab:params}
+\begin{tabular}{lcccl}
+\toprule
+Set & init/final & data phase & $\mathrm{IV}_1$ & Intended use\\
+\midrule
+\Fable (default) & $\PP{12}$ & $\PP{8}$ & \texttt{0x012020C8} & general purpose\\
+\FableF & $\PP{12}$ & $\PP{6}$ & \texttt{0x012020C6} & throughput first; ChaCha12-level margin\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{\FableAEAD}
+\label{sec:aead}
+Inputs: key $K$ (256 bits, words $K[0..7]$), nonce $N$ (192 bits, words $N[0..5]$), associated data $A$ and message $M$ of arbitrary byte length (a single message is limited to $2^{64}$ bytes; larger objects use \FableStream). Output: ciphertext $C$ with $|C| = |M|$ and a 256-bit tag $T$; $T$ may be truncated by the application to no fewer than 128 bits. $\mathrm{IV}_0 = \texttt{0x4661626C}$ (ASCII ``Fabl'').
+
+\begin{algorithm}[htb]
+\caption{\FableAEAD encryption, parameter set with data-phase rounds $d$ and constant $\mathrm{IV}_1$}
+\label{alg:aead}
+\begin{algorithmic}[1]
+\Require $K \in \{0,1\}^{256}$, $N \in \{0,1\}^{192}$, $A, M \in \{0,1\}^{8*}$
+\Ensure $C \in \{0,1\}^{|M|}$, $T \in \{0,1\}^{256}$
+\State $S \gets \mathrm{IV}_0 \,\|\, \mathrm{IV}_1 \,\|\, K[0..7] \,\|\, N[0..5]$ \Comment{$S[0]{=}\mathrm{IV}_0$, $S[1]{=}\mathrm{IV}_1$, $S[2..9]{=}K$, $S[10..15]{=}N$}
+\State $S \gets \PP{12}(S)$
+\State $S[8..15] \gets S[8..15] \oplus K[0..7]$ \Comment{key re-injected into the capacity}
+\If{$|A| > 0$}
+  \State split $A$ into 32-byte blocks $A_0,\ldots,A_{a-1}$ with $|A_{a-1}| < 32$ (the last block may be empty)
+  \For{$j = 0$ \textbf{to} $a-2$}
+    \State $S[0..7] \gets S[0..7] \oplus A_j$;\quad $S \gets \PP{d}(S)$
+  \EndFor
+  \State $S[0..7] \gets S[0..7] \oplus \mathrm{pad}(A_{a-1})$;\quad $S \gets \PP{d}(S)$
+\EndIf
+\State $S[15] \gets S[15] \oplus \texttt{0x80000000}$ \Comment{domain separation: end of associated data}
+\State split $M$ into 32-byte blocks $M_0,\ldots,M_{m-1}$ with $|M_{m-1}| < 32$ (the last block may be empty)
+\For{$j = 0$ \textbf{to} $m-2$}
+  \State $S[0..7] \gets S[0..7] \oplus M_j$;\quad $C_j \gets S[0..7]$;\quad $S \gets \PP{d}(S)$
+\EndFor
+\State $S[0..7] \gets S[0..7] \oplus \mathrm{pad}(M_{m-1})$;\quad $C_{m-1} \gets$ first $|M_{m-1}|$ bytes of $S[0..7]$
+\State $S[8..15] \gets S[8..15] \oplus K[0..7]$ \Comment{finalisation}
+\State $S \gets \PP{12}(S)$
+\State $T \gets S[0..7]$ \Comment{the tag is the rate itself; it is \emph{not} XORed with the key}
+\State \Return $C_0 \| \cdots \| C_{m-1},\; T$
+\end{algorithmic}
+\end{algorithm}
+
+Algorithm~\ref{alg:aead} gives encryption. Note that the message is always terminated by a padded block, even when $|M|$ is a multiple of 32 or $M$ is empty, whereas an empty $A$ is not absorbed at all; the bit set in $S[15]$ after the associated data separates the two phases. Decryption is the mirror image: each full ciphertext block $C_j$ is XORed with the rate to recover $M_j$ and then \emph{replaces} the rate before $\PP{d}$; for the last block the plaintext is recovered from the truncated keystream and $\mathrm{pad}(M_{m-1})$ is XORed into the rate. The received tag is compared with the recomputed one in constant time; no plaintext is released on failure.
+
+\subsection{\FableStream}
+\label{sec:streamspec}
+\FableStream is the STREAM construction~\cite{HRRV15} over \FableAEAD. Parameters: a chunk size $L$ (default 65536 bytes, recorded in the header) and a 152-bit file nonce $N_f$. The file header is
+\[
+H = \texttt{"FBLS"} \,\|\, \texttt{0x01} \,\|\, \mathrm{LE}_{32}(L) \,\|\, N_f \qquad (28 \text{ bytes}),
+\]
+and the plaintext is split into $n = \lfloor |M|/L \rfloor + 1$ chunks $M_0,\ldots,M_{n-1}$, of which the last has fewer than $L$ bytes and may be empty. Chunk $i$ is encrypted with \FableAEAD under the chunk nonce
+\[
+N_i = N_f \,\|\, \mathrm{LE}_{32}(i) \,\|\, \mathrm{flag}_i,\qquad \mathrm{flag}_i = \texttt{0x01} \text{ if } i = n-1 \text{ else } \texttt{0x00},
+\]
+with associated data $H$, producing $C_i \,\|\, T_i$; the output is $H \,\|\, C_0 \| T_0 \| \cdots \| C_{n-1} \| T_{n-1}$. The counter allows $2^{32}$ chunks (256\,TiB at the default chunk size). A final chunk with $\mathrm{flag} = \texttt{0x01}$ is always present, so truncation at a chunk boundary is detected; reordering is detected through the counter and cross-file splicing through $N_f$ and $H$. Decryption verifies chunks in order and stops at the first failure; chunks released before that point are authentic (the online property of STREAM). $N_f$ is either generated uniformly at random or supplied by the caller as a structured value that is unique per key (\S\ref{sec:stream}).
+
+\subsection{\FableHash and \FableXOF}
+\label{sec:hashspec}
+The hash is a plain sponge with $r = c = 256$ and $\PP{12}$ throughout. The initial state is $\mathrm{IV}_0 \,\|\, \texttt{0x01202000} \,\|\, 0^{14\times 32}$ (the rounds byte of $\mathrm{IV}_1$ is zero, which separates hashing from every AEAD parameter set). Absorption XORs 32-byte blocks into $S[0..7]$ with a $\PP{12}$ after each, the last block $10^*$-padded as above; squeezing outputs $S[0..7]$ and applies $\PP{12}$ between output blocks. \FableHash-256 is the first 32 bytes of the XOF. Claimed: 128-bit collision resistance and 256-bit preimage resistance (for XOF outputs of at least 512 bits).
+
+\subsection{Test vectors}
+Appendix~\ref{app:vectors} lists $\PP{12}$ and $\PP{8}$ applied to the all-zero state and one AEAD vector per parameter set. The full set (five AEAD vectors per parameter set, two hash vectors, both permutation vectors) is \texttt{test\_vectors\_v0.3.json} in the repository; the \FableF vectors coincide with the v0.1 vectors, which were generated before the parameter set existed.
 
 % =====================================================================
 \section{Design Rationale}
@@ -115,9 +228,52 @@ ARX permutations have no provable active-S-box bound; \FableP, like \ChaCha, eve
 
 \appendix
 \section{Round constants}
-% TODO
+\label{app:rc}
+$\mathrm{RC}[i] = \lfloor 2^{32} \cdot \mathrm{frac}(\ln p_i) \rfloor$ for the first twelve primes. Recomputed with 60-digit precision in \texttt{tools/check\_constants.py}; all twelve are distinct, no two are rotations of each other, and $\mathrm{RC}[i] \oplus (\mathrm{RC}[i] \rotl 16) \neq 0$ for every $i$.
+
+\begin{center}
+\begin{tabular}{ccl@{\qquad}ccl}
+\toprule
+$i$ & $p_i$ & $\mathrm{RC}[i]$ & $i$ & $p_i$ & $\mathrm{RC}[i]$\\
+\midrule
+0 & 2 & \texttt{b17217f7} & 6 & 17 & \texttt{d54d783f}\\
+1 & 3 & \texttt{193ea7aa} & 7 & 19 & \texttt{f1c6c0c0}\\
+2 & 5 & \texttt{9c041f7e} & 8 & 23 & \texttt{22afbfba}\\
+3 & 7 & \texttt{f2272ae3} & 9 & 29 & \texttt{5e071979}\\
+4 & 11 & \texttt{65dc76ef} & 10 & 31 & \texttt{6f19c912}\\
+5 & 13 & \texttt{90a08566} & 11 & 37 & \texttt{9c651dc7}\\
+\bottomrule
+\end{tabular}
+\end{center}
+
 \section{Test vectors}
-% TODO
+\label{app:vectors}
+All values are byte strings in hexadecimal; state words are serialised little-endian, $S[0]$ first. Key $K = \texttt{00\,01\,\ldots\,1f}$ (bytes $0..31$), nonce $N = \texttt{00\,01\,\ldots\,17}$ (bytes $0..23$).
+
+\paragraph{Permutation of the all-zero state.}
+\begin{center}\small
+\begin{tabular}{ll}
+\toprule
+$\PP{12}(0^{512})$ & \texttt{987e1eab32cefb5c1476a1517c5d0c9f81d61cb4808b32b00db6745079ed4494}\\
+                   & \texttt{7ea9cb25720c64fe7bb9b86e3e1db2d345a9b4024a1f5849b1f77ecc6188a8fd}\\
+$\PP{8}(0^{512})$  & \texttt{13bf4c33b2ac964ca319d28c2e01c0732aaf9109228e083ec58861cabc663dd6}\\
+                   & \texttt{a7bbce1ed69452d5975b4def6f81f40812bfceced5a62100a16f9ef2e066e302}\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{AEAD, one vector per parameter set.} $A = \texttt{"header"}$ (\texttt{686561646572}), $M = $ bytes $0..31$ (\texttt{000102\ldots1f}); output is $C \,\|\, T$ (64 bytes).
+\begin{center}\small
+\begin{tabular}{ll}
+\toprule
+\Fable ($\PP{12}/\PP{8}$) & \texttt{59358977baf9ca6b482719c0299011ab2dd25d2c03f933b17a3822ff0cfdd254}\\
+ & \texttt{48f4dfc93df45855b8f92ea1282cafaf5087a4077113e4b98949ddec135aaa37}\\
+\FableF ($\PP{12}/\PP{6}$) & \texttt{9e43775b205f324f6fd91b0511fa4a401bf73905ea86c0066a2f94f49988c926}\\
+ & \texttt{3d6d58e99c0b8d8adf3dfb8df17ec96ef186b62d0118f8915c652a5b5a1ff768}\\
+\bottomrule
+\end{tabular}
+\end{center}
+The remaining vectors (empty message, AD only, 5-byte message, two blocks; hash of the empty string and of \texttt{"abc"}) are in \texttt{test\_vectors\_v0.3.json}; \texttt{tests/check\_c\_vectors.py} and \texttt{tests/check\_stream\_avx2.py} verify the C implementation against all of them and against the Python reference on random inputs.
 \section{SAT models}
 % TODO
 

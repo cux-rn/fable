@@ -201,7 +201,7 @@ Every choice below is tied to an experiment or a proof in \S\ref{sec:security}; 
 
 \subsection{ARX and the \ChaCha double round}
 \label{sec:whyarx}
-\FableP is an ARX permutation on sixteen 32-bit words for three reasons. First, the operations map one-to-one onto SIMD lanes: a 512-bit state is half an AVX2 register file, eight independent states fit in the eight 32-bit lanes of the sixteen \texttt{ymm} registers, and the rotations by 16 and 8 are byte shuffles. Second, ARX has no table look-ups and no data-dependent branches, so constant-time execution is the default rather than an engineering effort. Third, by taking the round function to be exactly the \ChaCha double round---column step, diagonal step, quarter-round rotations $(16,12,8,7)$---we inherit a body of published cryptanalysis that is unusually deep for a symmetric primitive: differential-linear attacks with probabilistic neutral bits have been refined continuously since 2008~\cite{AFKMR08,BLT20,BBCDFLNT22,CS21,DGSS22,DGM23,WLHL23,Dey24,SDSM25,FT25,FT25b}, and the best of them is the yardstick for our round counts. The price is well known: an ARX round has no provable lower bound on the number of active S-boxes, so no ``$n$ rounds have no characteristic above $2^{-128}$'' statement can be made the way it is for an SPN such as Ascon's S-box layer~\cite{Ascon21}. We accepted this trade because a wide-trail SPN at the same throughput on general-purpose CPUs would need a bitsliced S-box layer, and because the questions an ARX design leaves open are precisely the ones the \ChaCha literature has spent two decades sharpening. The calibration of that literature to \FableP is in \S\ref{sec:dl}, and the exact statements we can make (SAT trail bounds) are in \S\ref{sec:diff} and \S\ref{sec:linear}.
+\FableP is an ARX permutation on sixteen 32-bit words for three reasons. First, the operations map one-to-one onto SIMD lanes: a 512-bit state is half an AVX2 register file, eight independent states fit in the eight 32-bit lanes of the sixteen \texttt{ymm} registers, and the rotations by 16 and 8 are byte shuffles. Second, ARX has no table look-ups and no data-dependent branches, so constant-time execution is the default rather than an engineering effort. Third, by taking the round function to be exactly the \ChaCha double round---column step, diagonal step, quarter-round rotations $(16,12,8,7)$---we inherit a body of published cryptanalysis that is unusually deep for a symmetric primitive: differential-linear attacks with probabilistic neutral bits have been refined continuously since 2008~\cite{AFKMR08,BLT20,BBCDFLNT22,CS21,DGSS22,DGM23,WLHL23,Dey24,SDSM25,FT25,FT25b}, and the best of them is the yardstick for our round counts. The price is well known: an ARX round has no provable lower bound on the number of active S-boxes, so no ``$n$ rounds have no characteristic above $2^{-128}$'' statement can be made the way it is for an SPN such as Ascon's S-box layer~\cite{Ascon21}. We accepted this trade because, on CPUs without AES instructions, a wide-trail SPN at the same throughput would need a bitsliced S-box layer, and because the questions an ARX design leaves open are precisely the ones the \ChaCha literature has spent two decades sharpening. The calibration of that literature to \FableP is in \S\ref{sec:dl}, and the exact statements we can make (SAT trail bounds) are in \S\ref{sec:diff} and \S\ref{sec:linear}.
 
 \subsection{Round constants and the column-symmetric subspace}
 \label{sec:constants}
@@ -234,45 +234,332 @@ With $b = 512$, the split $r = c = 256$ gives the keyed duplex its ``beyond $2^{
 
 \subsection{The tag is the rate, not the rate XOR the key}
 \label{sec:whytag}
-\FableAEAD outputs $T = S[0..7]$ after the finalising $\PP{12}$ and does not XOR the key into it. The key has already been injected into the capacity before that permutation, so the tag is the $\tau$-bit truncation of $\PP{12}$ applied to a state that is a function of the key, the nonce, the associated data, the message and the parameter-set identifier. Any two inputs that produce the same tag therefore either produce the same 512-bit state (a $2^{-512}$ event with a fixed key difference) or a collision of a truncated permutation, and the commitment strength is $\tau/2$ bits for the cost of nothing. XORing the key into the tag, as Ascon does, would not obviously weaken this---the adversary would then need $F(X) \oplus F(X') = K \oplus K'$---but it would make the reduction depend on a relation between the key and the tag rather than on the collision resistance of a public function alone, and we preferred the argument whose only assumption is that $\PP{12}$ has no collision shortcut. The reduction is Theorem~\ref{thm:cmt} in \S\ref{sec:commitment}.
+\FableAEAD outputs $T = S[0..7]$ after the finalising $\PP{12}$ and does not XOR the key into it. The key has already been injected into the capacity before that permutation, so the tag is the $\tau$-bit truncation of $\PP{12}$ applied to a state that is a function of the key, the nonce, the associated data, the message and the parameter-set identifier. Any two inputs that produce the same tag therefore either produce the same 512-bit state with a fixed key difference (an event of probability at most $q^2/2^{513}$ after $q$ permutation queries) or a collision of a truncated permutation, and the commitment strength is $\tau/2$ bits for the cost of nothing.
+
+The key is injected into the capacity twice more, after initialisation and before finalisation, as in Ascon~\cite{Ascon21}. The first re-injection means that an adversary who recovers the full state during the data phase still does not learn the key; the second means that even a full state recovered after the last data block does not allow forging the tag, since the finalising permutation is applied to a state that depends on the key once again. Both are cheap (eight XORs each) and neither interferes with the commitment argument, because the key is part of the state that the tag commits to either way. XORing the key into the tag, as Ascon does, would not obviously weaken this---the adversary would then need $F(X) \oplus F(X') = K \oplus K'$---but it would make the reduction depend on a relation between the key and the tag rather than on the collision resistance of a public function alone, and we preferred the argument whose only assumption is that $\PP{12}$ has no collision shortcut. The reduction is Theorem~\ref{thm:cmt} in \S\ref{sec:commitment}.
 
 \subsection{Nonce length, file nonce, chunk size and STREAM}
 \label{sec:whystream}
-The AEAD nonce is 192 bits so that \FableStream can spend 32 bits on a chunk counter and 8 bits on the end-of-file flag and still leave 152 random bits for the file nonce $N_f$. For $F$ files under one key the probability that two random file nonces coincide is at most $F^2/2^{153}$: $2^{-73}$ at $F = 2^{40}$ and $2^{-57}$ in the degenerate case of $2^{48}$ single-chunk files that exhausts the $2^{64}$-byte budget. This is the largest term in the concrete security bound (\S\ref{sec:mu}), which is why the specification also admits a caller-supplied structured $N_f$ with zero collision term. The default chunk of 64\,KiB is a compromise between overhead and granularity: the 32-byte tag per chunk is 0.05\,\% of the data, the two $\PP{12}$ calls per chunk add about 0.2\,\% to the round count of the 2048 data-phase permutations, and 64\,KiB is large enough for the eight-lane AVX2 implementation to amortise the transposition of state and data. STREAM~\cite{HRRV15} was chosen over a single long duplex stream because it gives, at that cost, independent chunks (thread- and lane-level parallelism, random access on decryption), online decryption in which every released chunk is already authenticated, and a tight reduction to the nonce-based AEAD security of \FableAEAD that covers truncation, reordering and cross-file splicing. The STREAM reduction and the nonce term are in \S\ref{sec:mu} and \S\ref{sec:stream}; the throughput of the eight-lane implementation is in \S\ref{sec:impl}.
+The AEAD nonce is 192 bits so that \FableStream can spend 32 bits on a chunk counter and 8 bits on the end-of-file flag and still leave 152 random bits for the file nonce $N_f$. For $F$ files under one key the probability that two random file nonces coincide is at most $F^2/2^{153}$: $2^{-73}$ at $F = 2^{40}$ and $2^{-57}$ in the degenerate case of $2^{48}$ single-chunk files that exhausts the $2^{64}$-byte budget. This is the largest term in the concrete security bound (\S\ref{sec:mu}), which is why the specification also admits a caller-supplied structured $N_f$ with zero collision term. The default chunk of 64\,KiB is a compromise between overhead and granularity: the 32-byte tag per chunk is 0.05\,\% of the data, the two $\PP{12}$ calls per chunk add about 0.2\,\% to the round count of the 2048 data-phase permutations, and 64\,KiB is large enough for the eight-lane AVX2 implementation to amortise the transposition of state and data. STREAM~\cite{HRRV15} was chosen over a single long duplex stream because it gives, at that cost, independent chunks (thread- and lane-level parallelism, random access on decryption---with the truncation guarantee requiring the final chunk to be checked), online decryption in which every released chunk is already authenticated, and a tight reduction to the nonce-based AEAD security of \FableAEAD that covers truncation, reordering and cross-file splicing. The STREAM reduction and the nonce term are in \S\ref{sec:mu} and \S\ref{sec:stream}; the throughput of the eight-lane implementation is in \S\ref{sec:impl}.
 
 % =====================================================================
 \section{Security Analysis}
 \label{sec:security}
-% TODO (section 4): written after Section 3 review. Subsection labels are referenced from Sections 1 and 3.
+
+All results in this section are first-party and reproducible: every number is taken from the analysis log of the repository (\repo), which records for each the command that regenerates it and the raw data file it was computed from; we cite those files inline. Three distinctions are kept strictly throughout. A \emph{trail} (characteristic) fixes the difference or mask at every intermediate step and its probability or correlation is computed under the usual independence assumption; a \emph{differential} (resp.\ linear hull) aggregates all trails with the same input and output and can only have larger probability (resp.\ a different correlation). A statement is \emph{exact} when the SAT solver has both found a trail of weight $W$ and proved that none of weight $W-1$ exists; it is a \emph{SAT lower bound} on the weight (hence an upper bound on the trail probability) when the solver proved ``no trail of weight $\leq W-1$'' and was stopped before finding one; it is a \emph{split bound} when it is the sum of bounds for consecutive segments (\S\ref{sec:split}). Bounds on weights are lower bounds; the corresponding bounds on probabilities are upper bounds.
+
 \subsection{Avalanche and diffusion}
 \label{sec:avalanche}
+\paragraph{Model.} For $n$ rounds of \FableP, each of the 512 input bits is flipped in $N = 5\times10^5$ uniformly random states and, for each of the $512\times512$ (input bit, output bit) pairs, the fraction $p$ of states in which the output bit changed is recorded (\texttt{c/avalanche.c}, data \texttt{data/avalanche/av\_r\{1..6\}.u32}). Under the null hypothesis $p = 1/2$ the estimator has standard deviation $\sigma = 0.5/\sqrt{N} = 7.1\times10^{-4}$, and the expected maximum of $2^{18}$ independent Gaussian deviations is $\sigma\sqrt{2\ln 2^{18}} \approx 4.9\sigma = 0.0035$. A structural bias of $0.005$ would therefore stand out at $7\sigma$ above the noise ceiling.
+
+\begin{table}[htb]
+\centering
+\caption{Avalanche after $n$ rounds, $5\times10^5$ states per round count. ``Pairs'' counts the $512\times512$ input/output bit pairs.}
+\label{tab:avalanche}
+\begin{tabular}{crrrrrr}
+\toprule
+$n$ & mean $p$ & $\max|p-\tfrac12|$ & pairs $>0.02$ & pairs $>0.01$ & pairs $>0.005$ & never-flipping pairs\\
+\midrule
+1 & 0.35588 & 0.50000 & 188107 & 199886 & 206640 & 1881\\
+2 & 0.50000 & 0.00320 & 0 & 0 & 0 & 0\\
+3 & 0.50000 & 0.00299 & 0 & 0 & 0 & 0\\
+4 & 0.50000 & 0.00320 & 0 & 0 & 0 & 0\\
+5 & 0.50000 & 0.00327 & 0 & 0 & 0 & 0\\
+6 & 0.50000 & 0.00356 & 0 & 0 & 0 & 0\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Result.} Table~\ref{tab:avalanche}: after one round every word depends on every word but 57\,\% of the bit pairs are still deterministic and 1881 pairs never flip; from two rounds on the maximum deviation ($0.0030$--$0.0036$) equals the noise ceiling and the whole histogram lies in the first $0.005$ bin. Two rounds achieve full bit-level avalanche with no structural bias at the $0.005$ level. A consequence for the design process (\S\ref{sec:rotscreen}) is that two-round avalanche cannot discriminate between rotation constants; it saturates for all of them.
+
 \subsection{Differential trails}
 \label{sec:diff}
-% Lemma~\ref{lem:msb} (probability-one quarter-round differential) and the split bound 2^-132 go here.
+\paragraph{Model.} XOR differences propagate through XOR and rotation deterministically and through modular addition with the Lipmaa--Moriai conditions~\cite{LM01}: $(\alpha,\beta\to\gamma)$ is a valid differential of $z = x + y$ iff $\alpha_0\oplus\beta_0\oplus\gamma_0 = 0$ and, for $0 \le i \le 30$, $\alpha_i=\beta_i=\gamma_i$ implies $\alpha_{i+1}\oplus\beta_{i+1}\oplus\gamma_{i+1} = \alpha_i$; its weight is the number of positions $i \le 30$ with $\neg(\alpha_i=\beta_i=\gamma_i)$ and its probability $2^{-\text{weight}}$. Round constants are transparent to XOR differences. The permutation is encoded in CNF with one weight literal per addition bit (Appendix~\ref{app:sat}), the total weight is bounded with an incremental totalizer, and the minimum is found by increasing the bound until the instance is satisfiable (CaDiCaL~\cite{CaDiCaL} through PySAT~\cite{PySAT18}). Found trails are checked empirically by sampling through the C permutation (\texttt{sat/verify\_trail.py}).
+
 \begin{lemma}[probability-one quarter-round differential]
 \label{lem:msb}
-% TODO statement
+For every choice of rotation constants $(r_0,r_1,r_2,r_3)$, the quarter-round $Q$ has a differential of probability one with a nonzero input difference, namely
+$(\Delta a,\Delta b,\Delta c,\Delta d) = (0,\ \mathrm{MSB},\ 0,\ \mathrm{MSB}\oplus \mathrm{bit}(31-r_0)) \to (\mathrm{MSB},\ \mathrm{bit}(r_3-1),\ \mathrm{MSB},\ 0)$, where $\mathrm{MSB} = \mathrm{bit}(31)$ and $\mathrm{bit}(j) = 2^j$.
 \end{lemma}
+\begin{proof}
+A difference confined to the most significant bit passes through a modular addition with probability one, because no carry propagates out of bit 31. In $a \mathrel{+}= b$ the difference $\mathrm{MSB}$ of $b$ becomes $\Delta a = \mathrm{MSB}$. In $d \mathrel{\oplus}= a$ the MSB of $\Delta d$ cancels and $\mathrm{bit}(31-r_0)$ remains, which $d \rotl r_0$ moves to the MSB. Then $c \mathrel{+}= d$ gives $\Delta c = \mathrm{MSB}$ with probability one, $b \mathrel{\oplus}= c$ cancels $\Delta b$ to zero, so $b \rotl r_1$ carries no difference; $a \mathrel{+}= b$ leaves $\Delta a = \mathrm{MSB}$; $d \mathrel{\oplus}= a$ cancels $\Delta d$ to zero; $c \mathrel{+}= d$ leaves $\Delta c = \mathrm{MSB}$; finally $b \mathrel{\oplus}= c$ sets $\Delta b = \mathrm{MSB}$ and $b \rotl r_3$ moves it to $\mathrm{bit}(r_3-1)$. No addition ever sees a difference below bit 31, so the total weight is 0.
+\end{proof}
+For $(16,12,8,7)$ the SAT search returns exactly this trail and $10^5$ random samples confirm it; the search over all $32^4$ rotation choices (\S\ref{sec:rotscreen}) returns weight 0 for each, as the lemma predicts. This is the known behaviour of the \ChaCha quarter-round, inherited unchanged.
+
+\paragraph{Unconstrained model.} Table~\ref{tab:diffunc} gives the minimum trail weight of $\PP{n}$ when the input difference may be anywhere in the 512-bit state. The one-round optimum (weight 2, $2^{-2}$, verified: $2\times10^5$ samples hit at rate $0.2498$) places MSB-derived differences in two columns, cancels them to two MSBs in the column step and pays 2 in the diagonal step. The two-round search proved ``no trail of weight $\leq 30$'' after $9.4$ CPU-hours (the last level alone took $7657$\,s) and was stopped; the optimum is $\geq 31$, no trail is known. Three and four rounds are split bounds only.
+
+\begin{table}[htb]
+\centering
+\caption{Minimum differential trail weight of \FableP, unconstrained input difference (\texttt{data/diff/perm\_r*.json}, \texttt{perm\_r2\_baseline\_cadical.log}).}
+\label{tab:diffunc}
+\begin{tabular}{clll}
+\toprule
+rounds & weight & trail probability & status\\
+\midrule
+$\tfrac12$ (one $Q$) & 0 & $1$ & exact (Lemma~\ref{lem:msb})\\
+1 & 2 & $2^{-2}$ & exact, verified\\
+2 & $\geq 31$ & $\leq 2^{-31}$ & SAT lower bound (stopped)\\
+3 & $\geq 33$ & $\leq 2^{-33}$ & split bound $2+31$\\
+4 & $\geq 62$ & $\leq 2^{-62}$ & split bound $31+31$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Rate-restricted models.} In the data phase of the keyed duplex the adversary injects differences only through the 256-bit rate and observes only the rate. We therefore add three optional constraints to the SAT model:
+\begin{itemize}
+\item \textsf{rate-in}: the input difference is zero on $S[8..15]$ (the attacker controls only the message block);
+\item \textsf{cap-out-zero}: the output difference is zero on $S[8..15]$ (an \emph{internal collision}: the rate difference can be cancelled by the next message block, the capacities coincide, and every later tag collides---the forgery model);
+\item \textsf{rate-out-nonzero}: the output difference is nonzero on $S[0..7]$ (a difference observable in the keystream).
+\end{itemize}
+Table~\ref{tab:diffrate} summarises. The rate-restricted one-round optimum is 22, twenty bits more than the unconstrained one, because Lemma~\ref{lem:msb} needs a difference in the capacity word $d$ of the column quarter-round; the optimal trail places MSB-derived differences in $S[0]$ and $S[4]$ of one column. Its probability was checked with $2\times10^7$ random pairs: 3 hits against $2^{-22}\cdot 2\times10^7 = 4.8$ expected, consistent under Poisson statistics. An internal collision within half a round (column step only) is impossible: the instance is unsatisfiable up to weight 160, since the column step necessarily pushes a rate difference into the two capacity words of its column. With any input allowed, a one-round trail into a zero capacity difference costs only 6, so the \textsf{cap-out-zero} constraint is cheap on its own; what is expensive is confining the \emph{input} to the rate.
+
+\begin{table}[htb]
+\centering
+\caption{Minimum trail weight under the duplex data-phase constraints (\texttt{data/diff/perm\_r*\_rate*.json}, \texttt{*.log}). ``imp.'' = unsatisfiable up to weight 160.}
+\label{tab:diffrate}
+\begin{tabular}{lcccc}
+\toprule
+constraints & $\tfrac12$ round & 1 round & 2 rounds & 3 rounds\\
+\midrule
+none & 0 & 2 (exact) & $\geq 31$ & $\geq 33$ (split)\\
+rate-in & 2 (exact) & 22 (exact, verified) & $\geq 39$ & $\geq 43$\\
+rate-in + rate-out-nonzero & -- & 22 (exact) & -- & --\\
+rate-in + cap-out-zero & imp. & $\geq 43$ & $\geq 41$ & --\\
+cap-out-zero only & -- & 6 (exact, verified) & -- & --\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Split bounds.}
+\label{sec:split}
+Cut an $R$-round trail into consecutive segments. The differences at the cuts are left unconstrained, so the weight of the whole trail is at least the sum, over segments, of the minimum weight of that segment under only the constraints at its own two ends. A segment bound proved under fewer constraints remains valid under more, so the last segment of a forgery trail may use the unconstrained bound. For $\PP{8}$ in the forgery model (\textsf{rate-in} at the start, \textsf{cap-out-zero} at the end) the candidates are listed in Table~\ref{tab:split}; the best is four two-round segments.
+
+\begin{table}[htb]
+\centering
+\caption{Split bounds for a forgery trail through $\PP{8}$. Segment bounds from Tables~\ref{tab:diffunc} and \ref{tab:diffrate}.}
+\label{tab:split}
+\begin{tabular}{lr}
+\toprule
+segments (rounds: bound used) & total weight\\
+\midrule
+2 (rate-in $\geq 39$) + 2 (none $\geq 31$) + 2 (none $\geq 31$) + 2 (none $\geq 31$) & \textbf{132}\\
+1 (rate-in 22) + 2 (31) + 2 (31) + 2 (31) + 1 (none 2) & 117\\
+2 (rate-in $\geq 39$) + 2 (31) + 2 (31) + 1 (none 2) + 1 (cap-out-zero 6) & 109\\
+3 (rate-in $\geq 43$) + 2 (31) + 2 (31) + 1 (none 2) & 107\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Result.} Every differential \emph{trail} usable for a forgery or an observable keystream difference through the \Fable data phase has probability at most $2^{-132}$; through \FableF's $\PP{6}$ (segments $2+2+2$: $39+31+31$) at most $2^{-101}$. These are trail bounds: the probability of the corresponding \emph{differential}---the sum over all trails with the same input and output difference---is not bounded by them, and the margin over the $2^{-128}$ target is only 4 bits. The two two-round bounds that determine the result ($39$ and $31$) are SAT lower bounds still being raised in the background at the time of writing; each additional bit on both raises the $\PP{8}$ bound by 4 bits.
+
 \subsection{Rotation-constant screening}
 \label{sec:rotscreen}
-\subsection{Differential-linear margin}
+\paragraph{Model.} Candidates $(r_0,r_1,r_2,r_3) \in \{0,\ldots,31\}^4$ were ranked by the minimum trail weight of increasingly large pieces of \FableP (\texttt{sat/rot\_screen\_sat.py}, data \texttt{data/diff/screen\_*.csv(.gz)}), with a one-round avalanche statistic as tie-breaker.
+
+\begin{table}[htb]
+\centering
+\caption{Degeneration of the screening metrics.}
+\label{tab:screen}
+\begin{tabular}{lll}
+\toprule
+metric & coverage & result\\
+\midrule
+single $Q$, min trail weight & all $32^4 = 1\,048\,576$ & weight 0 for every choice (Lemma~\ref{lem:msb})\\
+one round of \FableP & 254\,576 (all prefixes $r_0 \in \{0..7\}$) & weight 2 for all 201\,422 choices without a zero rotation; 0 or 1 otherwise\\
+1.5 rounds (round + column step) & 2000 of a 3001-candidate list$^\dagger$ & max.\ weight 12; 1338 choices (67\,\%) tie at 12, none above\\
+one-round avalanche mean $p$ & the 1338 tied choices & baseline $0.3558$, rank 524/1338; best $0.3814$\\
+two rounds, thresholds 16/20/24 & top 20 by avalanche + baseline & all 21 have weight $\geq 25$; baseline $\geq 31$\\
+\bottomrule
+\end{tabular}\\[2pt]
+{\footnotesize $^\dagger$ baseline, $(20,12,8,7)$, 630 SIMD-friendly choices with $r_0,r_2\in\{8,16,24\}$, and random choices; stopped after 2000 at 49\,s per candidate.}
+\end{table}
+
+\paragraph{Result.} Table~\ref{tab:screen}: the trail-weight metrics do not separate the candidates (12 appears to be a structural ceiling at 1.5 rounds---the weight-2 MSB trail plus one column step), and the two-round bounds of the twenty fastest-diffusing candidates are all $\geq 25$ with the baseline proved further to $\geq 31$ only because it was run longer. The first eight of the twenty are listed in Table~\ref{tab:top8}, the full table in Appendix~\ref{app:ranking}. With no differential reason to change, $(16,12,8,7)$ was kept.
+
+\begin{table}[htb]
+\centering
+\caption{Top of the two-round ranking (order by one-round avalanche mean; all two-round weights $\geq 25$).}
+\label{tab:top8}
+\begin{tabular}{clcccc}
+\toprule
+rank & $(r_0,r_1,r_2,r_3)$ & 1.5-round weight & 2-round weight & avalanche mean & SIMD-friendly\\
+\midrule
+1 & (24,21,16,20) & 12 & $\geq 25$ & 0.3814 & yes\\
+2 & (24,21,16,23) & 12 & $\geq 25$ & 0.3814 & yes\\
+3 & (24,21,16,30) & 12 & $\geq 25$ & 0.3813 & yes\\
+4 & (16,21,24,9) & 12 & $\geq 25$ & 0.3812 & yes\\
+5 & (16,21,24,24) & 12 & $\geq 25$ & 0.3812 & yes\\
+6 & (16,21,24,8) & 12 & $\geq 25$ & 0.3812 & yes\\
+7 & (16,5,8,6) & 12 & $\geq 25$ & 0.3800 & yes\\
+8 & (16,21,25,22) & 12 & $\geq 25$ & 0.3792 & no\\
+-- & (16,12,8,7) baseline & 12 & $\geq 31$ & 0.3558 & yes\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Differential-linear calibration}
 \label{sec:dl}
+\paragraph{Literature.} Table~\ref{tab:dllit} lists the published attacks on reduced-round \ChaCha with a 256-bit key; ``rounds'' are \ChaCha single rounds (a \FableP round is two of them). The attack model is the PRF one: the adversary chooses nonce and counter words and sees the full 512-bit output. Single-bit differential-linear distinguishers exist up to 3.5 rounds~\cite{BLT20}, a 4-round distinguisher with a 3-bit output mask has bias $0.0032 \approx 2^{-8.3}$~\cite{BLT20}, 4.5--5-round distinguishers reach correlation $2^{-32.2}$ with hull techniques~\cite{XXTQ24}, and the rest of an attack is 2.5--3 rounds of key guessing with probabilistic neutral bits or bit puncturing. No attack on 8 rounds is known.
+
+\begin{table}[htb]
+\centering
+\caption{Key-recovery attacks on reduced-round ChaCha (256-bit key). Time and data as reported.}
+\label{tab:dllit}
+\small
+\begin{tabular}{clll}
+\toprule
+rounds & time & data & reference\\
+\midrule
+6 & $2^{139}$ & $2^{30}$ & \cite{AFKMR08}\\
+6 & $2^{77.4}$ & $2^{58}$ & \cite{BLT20,BBCDFLNT22}\\
+6 & $2^{71.0}$ & $2^{41.6}$ & \cite{Dey24}\\
+6 & $2^{57.4}$ & $2^{55.7}$ & \cite{FT25}\\
+7 & $2^{248}$ / $2^{237.7}$ / $2^{230.86}$ & -- & \cite{AFKMR08} / \cite{CS21} / \cite{BLT20}\\
+7 & $2^{221.95}$ / $2^{218.92}$ & $2^{90.2}$ / $2^{87.2}$ & \cite{DGSS22} / \cite{DGM23}\\
+7 & $2^{210.3}$ & $2^{103.3}$ & \cite{WLHL23}\\
+7 & $2^{192.89}$ & $2^{93.79}$ & \cite{Dey24}\\
+7 & $2^{189.7}$ & $2^{102.63}$ & \cite{XXTQ24}\\
+7 & $2^{178.12}$ & $2^{101.09}$ & \cite{SDSM25}\\
+7 & $2^{148.2}$ & $2^{127.7}$ & \cite{FT25}\\
+7.25 & $2^{223.9}$ / $2^{212.43}$ & $\approx 2^{100.6}$ & \cite{XXTQ24} / \cite{SDSM25}\\
+7.5 & $2^{255.24}$ & $2^{32.64}$ & \cite{Dey24}\\
+7.5 & $2^{253.23}$ & $2^{34.47}$ & \cite{SDSM25}\\
+7.5 & $2^{250.2}$ & $2^{127.1}$ & \cite{FT25}\\
+7.5 (distinguisher) & $2^{251.4}$ & -- & \cite{FT25b}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Experiment.} To check that the round constants do not change the differential-linear behaviour, we measured all single-bit differential-linear biases $\varepsilon(i,j) = \Pr[\text{output bit } j \text{ unchanged when input bit } i \text{ is flipped}] - \tfrac12$ over $2^{22}$ random states per input bit, for 1--4 single rounds (constants injected before each column step, using the same suffix of $\mathrm{RC}$ as the corresponding $\PP{n}$), in three variants: \textsf{const} (\FableP as specified), \textsf{noconst} (all constants zero, i.e.\ the bare \ChaCha round structure on a random state) and \textsf{chacha} (genuine \ChaCha state layout: words 0--3 fixed to the $\sigma$ constants, key/counter/nonce random, differences only in words 12--15, the published attack model) (\texttt{c/dl\_bias.c}, \texttt{data/dl/}). The noise level is $\sigma = 2^{-13}$ and the expected extreme over $2^{18}$ pairs is $4.9\sigma \approx 2^{-9.7}$.
+
+\begin{table}[htb]
+\centering
+\caption{Maximum single-bit differential-linear bias $|\varepsilon|$; ``rate$\to$rate'' restricts both bits to $S[0..7]$.}
+\label{tab:dlbias}
+\begin{tabular}{cccccc}
+\toprule
+single rounds & \Fable rounds & \textsf{const} & \textsf{const}, rate$\to$rate & \textsf{noconst} & \textsf{chacha}\\
+\midrule
+1 & 0.5 & $0.5$ (deterministic) & $0.5$ & $0.5$ & --\\
+2 & 1 & $0.5$ (deterministic) & $0.5$ & $0.5$ & --\\
+3 & 1.5 & $0.1765 = 2^{-2.50}$ & $2^{-4.9}$ & $2^{-2.50}$ & $0.0991 = 2^{-3.34}$\\
+4 & 2 & $0.00111 = 2^{-9.8}$ (noise ceiling) & $2^{-9.9}$ & $2^{-9.8}$ & $2^{-9.8}$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Result.} Table~\ref{tab:dlbias}. The pairwise correlation coefficient between the \textsf{const} and \textsf{noconst} bias maps is $1.0000$ at one and two single rounds (constants only shift values, differences are unchanged), $0.9942$ at three (the second constant injection changes the carry distribution of some additions; 2473 of $2^{18}$ pairs move by more than $4\sigma$, but the maximum bias is $0.1765$ against $0.1762$ and the histogram is unchanged), and $-0.003$ at four, where both maps are pure noise. Single-bit biases vanish below the $2^{-9.7}$ detection threshold at four single rounds, consistent with the literature's 3.5-round limit for single-bit distinguishers. The constants leave the bias envelope untouched, so \ChaCha results apply to \FableP round for round.
+
+\paragraph{Margins.} With key recovery on 7.5 single rounds as the yardstick, the \Fable data phase ($\PP{8}$, 16 single rounds) has a margin of $2.1\times$, initialisation and finalisation ($\PP{12}$, 24) $3.2\times$, and \FableF's data phase ($\PP{6}$, 12) $1.6\times$; ChaCha20 itself has $2.7\times$ and ChaCha12 $1.6\times$. The models differ in a way that we believe favours the defender: a \ChaCha attacker chooses 128 bits of nonce/counter and sees all 512 output bits (after the feed-forward), while a \Fable data-phase attacker controls a 256-bit rate difference---more---but observes only the 256-bit rate, and successive data-phase permutations are separated by a 256-bit secret capacity, so the backward (key-guessing) phase of a PNB attack must guess as much as it would guess of a \ChaCha key. The initialisation permutation, with a known constant prefix, a secret key and a chosen nonce, is the closest analogue of the \ChaCha PRF and has the largest margin.
+
 \subsection{Linear trails and hulls}
 \label{sec:linear}
+\paragraph{Model.} A linear approximation $(u,v\to w)$ of $z = x+y$ is modelled exactly through the carry chain (Wall\'en~\cite{Wallen03}, Schulte-Geers~\cite{SchulteGeers13}): with a mask $g_i$ on every carry bit, the local approximation at bit $i$ has correlation $1$ if $g_{i+1} = 0$ and $u_i\oplus w_i = v_i\oplus w_i = g_i\oplus w_i = 0$, correlation $\pm\tfrac12$ if $g_{i+1} = 1$ and $(u_i\oplus w_i)\oplus(v_i\oplus w_i)\oplus(g_i\oplus w_i) = 1$, and $0$ otherwise ($g_0$ absent, $g_{32} = 0$). Since each state has at most one successor, the carry-mask path is unique and $|\mathrm{corr}| = 2^{-\#\{i: g_i = 1\}}$ exactly; XOR duplicates the output mask onto both inputs, a value used twice receives the XOR of the two masks, and round constants only flip signs (Appendix~\ref{app:sat}). The weight $W$ of a trail gives correlation $2^{-W}$ (bias $2^{-W-1}$).
+
+\paragraph{Results.} The quarter-round has a correlation-one linear relation, the LSB relation $z_0 = x_0\oplus y_0$ carried through four additions (input masks $(\mathrm{bit}(0),0,0,\mathrm{bit}(0))$; measured correlation $+1.0000$). One round of \FableP has an exact optimum of weight 1 (input mask $S[0].b_0 \oplus S[4].b_0$, one half-correlation at bit 1 of one addition); its measured correlation is $-0.5017$ over $2\times10^5$ samples, the sign coming from the constants. With input and output masks confined to the rate (the keystream-distinguishing model) one round has weight $\geq 28$ (SAT lower bound, stopped); two rounds unconstrained have weight $\geq 19$ (SAT lower bound, stopped, being raised in the background); no two-round trail of weight $\leq 24$ is known. Data: \texttt{data/lin/}.
+
+\paragraph{Hulls.} For a fixed input/output mask pair we enumerate \emph{all} trails up to a weight cap and sum their signed correlations (\texttt{sat/lin\_hull.py}), computing each sign from the Walsh coefficients of the carry function (a single variable $+\tfrac12$, three variables $-\tfrac12$; at bit 0 the AND with $x\oplus y$ is $-\tfrac12$) and from the constants. For the one-round optimum only one trail exists up to weight 6: no hull effect, and the enumeration reproduces the measured $-0.5$ including its sign. For two rounds we took a trail of weight 48 obtained by fixing the input mask to the one-round optimum and enumerated around it (Table~\ref{tab:hull}): the hull correlation converges to $2^{-44.78}$, a factor $9.3 \approx 2^{3.2}$ above the best single trail, by a cap of 58.
+
+\begin{table}[htb]
+\centering
+\caption{Two-round linear hull around a weight-48 trail (\texttt{data/lin/hull\_r2\_w*.json}).}
+\label{tab:hull}
+\begin{tabular}{crrcc}
+\toprule
+weight cap & trails & positive / negative sign & $|\text{hull}|$ & vs.\ best trail $2^{-48}$\\
+\midrule
+54 & 544 & 181 / 363 & $2^{-45.02}$ & $\times 7.9$\\
+58 & 7812 & 3470 / 4342 & $2^{-44.78}$ & $\times 9.3$\\
+60 & 23745 & 11374 / 12371 & $2^{-44.78}$ & $\times 9.3$ (converged)\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Result.} Linear correlations quoted from single-trail bounds for two or more rounds should be read with a hull allowance of about 3 bits. Even so, a conservative split of $\PP{8}$ into four two-round segments with the current $\geq 19$ bound and a 3-bit allowance each gives a trail correlation of at most about $2^{-64}$ ($2^{128}$ data for a distinguisher); the one-round LSB relation is isolated and does not extend.
+
 \subsection{Rotational-XOR}
 \label{sec:rx}
-\subsection{Constants, slide and fixed points}
+\paragraph{Model.} A rotational pair $(x, x\rotl k)$ survives a modular addition with probability $p_k = (1 + 2^{k-32} + 2^{-k} + 2^{-32})/4$~\cite{KN10}: $2^{-1.415}$ for $k = 1$, $2^{-2.0}$ for $k = 16$. This is paid at every one of the 32 additions per round regardless of constants: $2^{-45.3}$ per round, $2^{-271.7}$ for $\PP{6}$ and $2^{-543.4}$ for $\PP{12}$ at $k = 1$. A constant $c$ XORed into a word changes the rotational-XOR difference by $c \oplus (c\rotl k)$~\cite{AL16}, which must then pass the following additions at a cost of roughly its Hamming weight minus at most 2.
+
+\paragraph{Result.} For $k = 1$ the injected weights per round are $\mathrm{hw}(\mathrm{RC}[i]\oplus(\mathrm{RC}[i]\rotl 1)) = 14, 18, 10, 16, 16, 18, 16, 10, 16, 14, 16, 14$ for $i = 0..11$, and the same values for the $S[5]$ injection; no round injects a zero difference for any $k \in \{1,\ldots,31\}$ (minimum $\mathrm{hw}(d_0)+\mathrm{hw}(d_5) = 16$, at $k = 4$, round 8). Adding the crude lower bound $\max(0,\mathrm{hw}-2)$ per injection gives $\geq 148$ extra bits for $\PP{6}$ and $\geq 308$ for $\PP{12}$, i.e.\ rotational-XOR trail probabilities of at most $2^{-419.7}$ for $\PP{6}$ and $2^{-851.4}$ for $\PP{12}$ at $k = 1$ (lower still for other $k$). Empirically, one quarter-round is rotational with probability $2^{-7.18}$ over $2^{20}$ samples without a constant (the independent-addition model predicts $2^{-5.66}$; chained additions are known to make the true value smaller~\cite{KNPSS15}), and $0$ of $2^{20}$ after XORing $\mathrm{RC}[6]$ into $a$. The structure alone puts rotational attacks far below $2^{-256}$ for six rounds; the constants add to that, and an exact SAT model of rotational-XOR trails with constants was therefore not built. Data: \texttt{data/rx\_check.txt}.
+
+\subsection{Constants, symmetry, slide and fixed points}
 \label{sec:constcheck}
+The claims of \S\ref{sec:constants} were checked by \texttt{tools/check\_constants.py} (\texttt{data/constants\_check.txt}):
+\begin{enumerate}
+\item the twelve constants recomputed from $\ln p_i$ with 60-digit precision match the table; they are pairwise distinct, none equals another rotated by any amount, no $\mathrm{RC}[i]$ equals $\mathrm{RC}[j]\rotl 16$, the minimum pairwise Hamming distance is 9, and $\mathrm{RC}[i]\oplus(\mathrm{RC}[i]\rotl 16) \neq 0$ for all $i$;
+\item with constants set to zero, the all-zero state is a fixed point of 12 rounds and the column-symmetric subspace $\mathcal{V}$ is preserved by 1--12 rounds, whereas the row-symmetric and all-equal classes are left after one round;
+\item with the constants, every structured input (all-zero, all-one, all-$\mathrm{MSB}$, all-1, three random members each of $\mathcal{V}$, of the row-symmetric class and of the all-equal class) gives an output after $n = 1..12$ rounds---counted both as a prefix and as a suffix of $\PP{12}$---that is neither symmetric nor a fixed point, and $10^4$ random members of $\mathcal{V}$ leave $\mathcal{V}$ after every one of the twelve rounds;
+\item slide: no two constants are equal, no constant is a rotation of another, the suffix $\mathrm{RC}[6..11]$ used by $\PP{6}$ is not periodic and does not occur as another window of the table, and the eleven consecutive XOR differences $\mathrm{RC}[i]\oplus\mathrm{RC}[i+1]$ are distinct (no affine slide);
+\item fixed points: none of the structured inputs is a fixed point of any $\PP{n}$, and $2^{18}$ random states contain no one-round fixed point. A random permutation has about one fixed point; only structured ones can be excluded.
+\end{enumerate}
+
 \subsection{Key commitment}
 \label{sec:commitment}
+Let $X = (Y_R, Y_C \oplus K)$ be the state just before the finalising permutation, where $(Y_R, Y_C)$ is the state after the last (padded) message block has been XORed into the rate; $T = \mathrm{trunc}_\tau(\PP{12}(X)[0..7])$. $X$ is a deterministic function of $(K, N, A, M)$ and of the parameter set (through $\mathrm{IV}_1$), and for a fixed $(C, T)$ and $(K', N', A')$ the message $M'$ is determined by decryption, so CMT-1 (two keys) and CMT-4 (two distinct tuples) in the sense of Bellare and Hoang~\cite{BH22} both amount to producing two tuples with the same $(C,T)$.
+
 \begin{theorem}[key commitment]
 \label{thm:cmt}
-% TODO statement
+Model $\PP{12}$ as a random permutation $\pi$ of $\{0,1\}^{512}$ to which the adversary makes $q$ forward or inverse queries. Any adversary that outputs two distinct tuples $(K,N,A,M) \neq (K',N',A',M')$ encrypting to the same $(C,T)$ under \FableAEAD with a $\tau$-bit tag succeeds with probability at most
+\[
+\frac{q(q-1)}{2^{\tau+1}} + \frac{q(q-1)}{2^{513}} + \frac{q}{2^{256}}.
+\]
 \end{theorem}
+\begin{proof}[Proof sketch]
+Let $X, X'$ be the two pre-finalisation states. (i) If $X \neq X'$, then $\mathrm{trunc}_\tau(\pi(X)) = \mathrm{trunc}_\tau(\pi(X'))$: a collision of the $\tau$-bit truncation of $\pi$ on two distinct queried inputs, probability at most $\binom{q}{2}/2^\tau$ up to the negligible bias of a truncated permutation. (ii) If $X = X'$ and $K \neq K'$, then $Y_R = Y'_R$ and $Y_C \oplus Y'_C = K\oplus K'$: two duplex paths through $\pi$, ending in different queries, whose final states satisfy a fixed 512-bit relation, probability at most $\binom{q}{2}/2^{512}$. (If $K = K'$ and the tuples differ elsewhere, $X = X'$ is a full internal state collision, covered by the same count.) (iii) Otherwise the adversary has guessed the 256-bit capacity of some path, probability at most $q/2^{256}$. A successful output is witnessed by one of the three events, and values of $\pi$ that were never queried are uniform and cannot produce an equal tag except by the same counting.
+\end{proof}
+
+\begin{claim}[corollary]
+With $\tau = 256$ the bound is $\approx q^2/2^{257}$: about $2^{128}$ permutation evaluations. With $\tau = 128$ it is $\approx q^2/2^{129}$: about $2^{64}$. Both are tight, since a generic birthday search on $\mathrm{trunc}_\tau\circ\PP{12}$ achieves them. Commitment is an offline collision problem and is not affected by the number of users or by nonce reuse. The specification's claims ``128-bit commitment with 256-bit tags, 64-bit with 128-bit tags'' are therefore correct in the ideal-permutation model.
+\end{claim}
+The model's practical premise is that $\PP{12}$ admits no collision shortcut, i.e.\ no 12-round differential of probability far above $2^{-512}$; the split of the two-round bound gives trail probabilities $\leq 2^{-186}$ for twelve rounds ($6\times 31$), and 24 single rounds are beyond every published \ChaCha differential or collision-type result (\S\ref{sec:dl}). The design choice behind the theorem is discussed in \S\ref{sec:whytag}; the argument is written out in \texttt{docs/key-commitment.md}.
+
 \subsection{Multi-user and STREAM bounds}
 \label{sec:mu}
+\paragraph{Model.} \FableAEAD is a keyed duplex with $b = 512$, $r = c = 256$, $k = 256$; $\mu$ users hold independent keys; the adversary makes $N$ offline permutation evaluations, $M$ online data blocks in total (32 bytes each, plus two calls per message for initialisation and finalisation) and $q_D$ verification queries; nonces are respected. Writing the multi-user keyed-duplex bound of Daemen, Mennink and Van Assche~\cite{DMV17} (which refines Jovanovic--Luykx--Mennink~\cite{JLM14}) with its multiplicity terms $L, \Omega$ collapsed to their worst case $\leq M$ and constants omitted,
+\[
+\mathrm{Adv} \;\leq\; \underbrace{\frac{\mu N}{2^{k}}}_{[A]} + \underbrace{\frac{M N}{2^{c}}}_{[B]} + \underbrace{\frac{M^2}{2^{c+1}}}_{[C]} + \underbrace{\frac{(M+N)^2}{2^{b+1}}}_{[D]} + \underbrace{\frac{q_D}{2^{\tau}}}_{[E]} + \underbrace{\frac{F^2}{2^{153}}}_{[F]},
+\]
+where $[F]$ is the probability that two of $F$ random 152-bit file nonces under one key coincide (zero for structured $N_f$). Table~\ref{tab:mu} evaluates the terms at the specification's limits.
+
+\begin{table}[htb]
+\centering
+\caption{Terms of the multi-user bound at $\mu = 2^{32}$ users, $2^{64}$ bytes per user ($M \approx 2^{91}$), $N = 2^{128}$, $q_D = 2^{64}$.}
+\label{tab:mu}
+\begin{tabular}{clll}
+\toprule
+term & governed by & value & single user ($M = 2^{59}$)\\
+\midrule
+$[A]$ $\mu N/2^k$ & $k = 256$ & $2^{-96}$ & $2^{-128}$\\
+$[B]$ $MN/2^c$ & $c = 256$ & $2^{-37}$ & $2^{-69}$\\
+$[C]$ $M^2/2^{c+1}$ & $c = 256$ & $2^{-75}$ & $2^{-139}$\\
+$[D]$ $(M+N)^2/2^{b+1}$ & $b = 512$ & $2^{-256}$ & $2^{-256}$\\
+$[E]$ $q_D/2^\tau$ & $\tau$ & $2^{-192}$ ($\tau{=}256$), $2^{-64}$ ($\tau{=}128$) & same\\
+$[F]$ $F^2/2^{153}$ & $|N_f| = 152$ & $2^{-89}$ ($F{=}2^{32}$) to $2^{-57}$ ($F{=}2^{48}$) & same\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{STREAM.} Hoang et al.~\cite{HRRV15} prove that the nOAE advantage of STREAM over an AEAD scheme is at most the nAE advantage of that scheme against an adversary with the same number of \emph{chunks} as queries, provided the derived chunk nonces are distinct; with $N_i = N_f\,\|\,i\,\|\,\mathrm{flag}_i$ they are distinct within a file by construction and across files whenever $N_f$ is. The reduction is lossless, so \FableStream inherits the bound above with $M$ counted in chunks times 2051 permutation calls per 64\,KiB chunk (2048 data blocks, one associated-data block, initialisation and finalisation), a factor of $1.0015$ on the block count.
+
+\paragraph{Result.} (1) $c = 256$ puts the keyed duplex in the ``beyond $2^{c/2}$'' regime: with $2^{64}$ bytes and $2^{128}$ offline work a single user retains $2^{-69}$ of advantage, and $[B]$ would exceed 1 in the multi-user setting at $c = 192$ (\S\ref{sec:whyrc}). (2) Multi-user degradation is governed by $[A]$ and $[B]$, both linear in $\mu$---$\log_2\mu$ bits, as the specification claims; $[C]$ grows as $\mu^2$ but from $2^{-139}$. (3) The largest concrete term is the random-file-nonce collision $[F]$, $2^{-57}$ to $2^{-89}$, which is why the specification limits random $N_f$ to $2^{40}$ files per key ($2^{-73}$) and offers a structured alternative. The derivation with the DMV17 multiplicity terms is in \texttt{docs/security-bounds.md}.
+
 \subsection{Fable-Stream nonce}
 \label{sec:stream}
+Within one file the chunk nonces $N_f\,\|\,\mathrm{LE}_{32}(i)\,\|\,\mathrm{flag}_i$ are distinct by construction for up to $2^{32}$ chunks. Across files under one key the 152-bit $N_f$ must be unique; when it is drawn at random this holds except with probability $F^2/2^{153}$ ($[F]$ above), and when it is structured (for instance a 64-bit device or session identifier followed by an 88-bit counter maintained by the caller) it holds unconditionally. Nonce reuse is not tolerated: as for any nonce-based scheme without misuse resistance, a repeated $(K, N_i)$ pair reveals the XOR of the two chunk plaintexts and the keystream of that position, and lets the adversary forge for that nonce.
+
+\subsection{What is not covered}
+\label{sec:notcovered}
+The following are not established by this paper and are listed so that they are not mistaken for results:
+\begin{itemize}
+\item direct (non-split) differential trail bounds for three or more rounds; the three-round rate-restricted bound of $\geq 43$ is the furthest the solver reached within its time cap;
+\item exact optima for two rounds, both differential ($\geq 31$ unconstrained, $\geq 39$ rate-restricted) and linear ($\geq 19$); the searches were stopped, not completed;
+\item differential (clustering) probabilities as opposed to trail probabilities; the 4-bit margin of the $2^{-132}$ split bound over $2^{-128}$ does not cover clustering, and the corresponding hull allowance for linear cryptanalysis was measured only for one two-round mask pair;
+\item algebraic, cube and integral attacks, and guess-and-determine attacks on the initialisation;
+\item fault, probing and other physical attacks (excluded by the specification);
+\item dedicated analysis of \FableHash beyond the flat sponge claim inherited from the permutation;
+\item any third-party cryptanalysis.
+\end{itemize}
 
 % =====================================================================
 \section{Implementation and Performance}
@@ -336,6 +623,45 @@ $\PP{8}(0^{512})$  & \texttt{13bf4c33b2ac964ca319d28c2e01c0732aaf9109228e083ec58
 \end{center}
 The remaining vectors (empty message, AD only, 5-byte message, two blocks; hash of the empty string and of \texttt{"abc"}) are in \texttt{test\_vectors\_v0.3.json}; \texttt{tests/check\_c\_vectors.py} and \texttt{tests/check\_stream\_avx2.py} verify the C implementation against all of them and against the Python reference on random inputs.
 \section{SAT models}
-% TODO
+\label{app:sat}
+Both models are in \texttt{sat/} of the repository (\texttt{fable\_diff.py}, \texttt{fable\_lin.py}, \texttt{lin\_hull.py}) and use PySAT~\cite{PySAT18} with CaDiCaL 1.5.3~\cite{CaDiCaL} (Glucose~4 only where interruptible solving was needed).
+
+\paragraph{Differential model.} Every 32-bit difference on a wire is a vector of 32 Boolean variables. XOR $z = x\oplus y$ introduces a fresh word $z$ with four clauses per bit; a rotation is a re-indexing. For $z = x + y$ with differences $(\alpha,\beta,\gamma)$ we add, for $i = 0..30$, a weight variable $w_i$ with the clauses $\neg w_i \Rightarrow (\alpha_i = \beta_i = \gamma_i)$, $w_i \Rightarrow \neg(\alpha_i = \beta_i = \gamma_i)$ and $\neg w_i \Rightarrow (\alpha_{i+1}\oplus\beta_{i+1}\oplus\gamma_{i+1}\oplus\alpha_i = 0)$ (14 clauses per bit), plus $\alpha_0\oplus\beta_0\oplus\gamma_0 = 0$; this is the Lipmaa--Moriai characterisation~\cite{LM01}, the trail weight is $\sum w_i$, and the quarter-round is the sequence of four additions, four XORs and four rotations of \S\ref{sec:perm}. One round is 32 additions ($992$ weight variables, $3552$ variables, $18\,112$ clauses); two rounds double this. A clause requires the input difference to be nonzero. The rate-restricted variants add unit clauses fixing the capacity part of the input (\textsf{rate-in}) or output (\textsf{cap-out-zero}) difference to zero, or a clause requiring a nonzero rate output difference. The total weight is bounded by an incremental totalizer (PySAT \texttt{ITotalizer}); the search asks ``weight $\leq k$?'' for $k = k_0, k_0+1, \ldots$ and stops at the first satisfiable $k$ (exact optimum) or at a time cap (lower bound $k+1$). Found trails are decoded to hexadecimal differences at every round boundary and verified by sampling random pairs through the C permutation.
+
+\paragraph{Linear model.} Masks are again 32 Boolean variables per wire. For an addition with masks $(u,v,w)$ we introduce carry-mask variables $g_1,\ldots,g_{31}$ and encode, for $i = 1..31$: $g_{i+1} = 0 \Rightarrow u_i = v_i = g_i = w_i$ and $g_{i+1} = 1 \Rightarrow u_i\oplus v_i\oplus g_i\oplus w_i = 1$ (with $g_{32} = 0$ forcing $u_{31} = v_{31} = g_{31} = w_{31}$), and at bit 0: $g_1 = 0 \Rightarrow u_0 = v_0 = w_0$. The weight is $\sum_{i=1}^{31} g_i$ and the trail correlation $2^{-\text{weight}}$ exactly (\S\ref{sec:linear}). XOR gates copy the output mask to both inputs; a wire used twice carries the XOR of the two consumers' masks, which is realised by a fresh word and four clauses per bit. The quarter-round therefore introduces, per addition, the masks on its two inputs and its output plus the fork masks. The hull enumerator fixes the input and output masks of a given trail, bounds the weight with the totalizer, and after every satisfying assignment adds a blocking clause on all wire-mask variables; the sign of each trail is the product of the local Walsh signs ($-\tfrac12$ when the three-variable majority approximation is used, and at bit 0 when the AND is approximated by $x\oplus y$) and of $(-1)^{\langle m, c\rangle}$ for every constant $c$ XORed into a wire carrying mask $m$.
+
+\section{Full two-round ranking of rotation constants}
+\label{app:ranking}
+The 21 candidates of \S\ref{sec:rotscreen}: the 20 best by one-round avalanche among the 1338 choices tied at 1.5-round weight 12, plus the baseline. All satisfy ``no two-round trail of weight $\leq 24$'' (\texttt{data/diff/screen\_r2\_top.csv}, \texttt{screen\_r2\_top\_k24.csv}); the baseline was run further to $\geq 31$.
+
+\begin{center}\small
+\begin{tabular}{clcccc}
+\toprule
+rank & $(r_0,r_1,r_2,r_3)$ & 1.5-round wt & 2-round wt & avalanche mean & never-flip pairs (4000 trials)\\
+\midrule
+1 & (24,21,16,20) & 12 & $\geq 25$ & 0.3814 & 6133\\
+2 & (24,21,16,23) & 12 & $\geq 25$ & 0.3814 & 6317\\
+3 & (24,21,16,30) & 12 & $\geq 25$ & 0.3813 & 6059\\
+4 & (16,21,24,9) & 12 & $\geq 25$ & 0.3812 & 6176\\
+5 & (16,21,24,24) & 12 & $\geq 25$ & 0.3812 & 6019\\
+6 & (16,21,24,8) & 12 & $\geq 25$ & 0.3812 & 5985\\
+7 & (16,5,8,6) & 12 & $\geq 25$ & 0.3800 & 7182\\
+8 & (16,21,25,22) & 12 & $\geq 25$ & 0.3792 & 6282\\
+9 & (22,17,26,27) & 12 & $\geq 25$ & 0.3790 & 4070\\
+10 & (16,25,21,8) & 12 & $\geq 25$ & 0.3787 & 6870\\
+11 & (19,17,25,20) & 12 & $\geq 25$ & 0.3784 & 5458\\
+12 & (27,17,22,31) & 12 & $\geq 25$ & 0.3783 & 3865\\
+13 & (6,14,22,10) & 12 & $\geq 25$ & 0.3777 & 5622\\
+14 & (15,23,27,18) & 12 & $\geq 25$ & 0.3776 & 8467\\
+15 & (18,24,21,15) & 12 & $\geq 25$ & 0.3772 & 5950\\
+16 & (25,17,5,14) & 12 & $\geq 25$ & 0.3771 & 5425\\
+17 & (15,10,8,16) & 12 & $\geq 25$ & 0.3771 & 6682\\
+18 & (16,10,8,18) & 12 & $\geq 25$ & 0.3771 & 7228\\
+19 & (6,17,20,17) & 12 & $\geq 25$ & 0.3770 & 7126\\
+20 & (17,7,13,5) & 12 & $\geq 25$ & 0.3768 & 8676\\
+-- & (16,12,8,7) & 12 & $\geq 31$ & 0.3558 & 7649\\
+\bottomrule
+\end{tabular}
+\end{center}
 
 \end{document}

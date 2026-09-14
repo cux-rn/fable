@@ -581,5 +581,6 @@ python sat/fable_lin.py  perm --rounds 2 --rot 16,12,8,7 --kstart 19 --solver ca
 | 时间 | 2 轮速率输入（差分） | 2 轮无约束（差分） | 2 轮线性 | P_8 拆分界 |
 |---|---|---|---|---|
 | 08:20 起点 | ≥ 39 | ≥ 31 | ≥ 19 | 2^-132 |
+| 10:20（k≤39 UNSAT，7172 s） | **≥ 40** | ≥ 31 | ≥ 19 | 2^-133 |
 
 **论文**：`paper/fable.tex`（IACR ToSC `iacrtrans` 类）、`paper/refs.bib`。逐节起草，每节经作者审阅后再写下一节；所有数字取自本日志。

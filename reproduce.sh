@@ -70,6 +70,11 @@ python sat/fable_diff.py perm --rounds 2 --rot 16,12,8,7 --rate-in --cap-out-zer
 python sat/fable_diff.py perm --rounds 3 --rot 16,12,8,7 --rate-in --kstart 41 --solver cadical153             # rate-in 3 rounds
 python sat/fable_lin.py  perm --rounds 1 --rot 16,12,8,7 --rate-io --solver cadical153                         # linear rate->rate 1 round
 python sat/fable_lin.py  perm --rounds 2 --rot 16,12,8,7 --solver cadical153                                   # linear 2 rounds
+# resume from an already-proven level (v0.4 background runs; final: rate-in >= 42, unconstrained >= 33, linear = 20)
+python sat/fable_diff.py perm --rounds 2 --rot 16,12,8,7 --rate-in --kstart 39 --solver cadical153 --out data/diff/perm_r2_rateI_v04.json
+python sat/fable_diff.py perm --rounds 2 --rot 16,12,8,7 --kstart 31 --solver cadical153 --out data/diff/perm_r2_unc_v04.json
+python sat/fable_lin.py  perm --rounds 2 --rot 16,12,8,7 --kstart 19 --solver cadical153 --out data/lin/lin_r2_v04.json
+python sat/lin_hull.py enumerate --trail data/lin/lin_r2_v04.json --wmax 24 --samples 0 --out data/lin/hull_r2opt_w24.json
 
 echo "== 9. LONG: rotation-constant screening (Sec. 4.3)"
 python sat/rot_screen_sat.py --metric q   --all --procs 8 --out data/diff/screen_q_all.csv

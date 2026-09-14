@@ -1,6 +1,7 @@
 % Fable: a 512-bit ARX permutation with built-in authentication, key commitment and chunked parallelism
 % IACR ToSC draft. Class: iacrtrans (https://github.com/Cryptosaurus/iacrtrans). Build: latexmk -pdf fable.tex
-\documentclass[journal=tosc,submission]{iacrtrans}
+\PassOptionsToClass{journal=tosc}{iacrtrans}   % passed this way so the LaTeX kernel does not flag the key=value option as unused
+\documentclass[submission]{iacrtrans}
 
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{booktabs}
@@ -33,9 +34,26 @@
 \newcommand{\BoundEight}{\the\numexpr\WrateTwo+3*\WuncTwo\relax}   % P_8 forgery split bound (2+2+2+2)
 \newcommand{\BoundSix}{\the\numexpr\WrateTwo+2*\WuncTwo\relax}     % P_6 forgery split bound (2+2+2)
 
+% ---- anonymity switch: \anontrue for submission (also keep the `submission' class option),
+%      \anonfalse for the camera-ready / ePrint version (and drop the `submission' class option) ----
+\newif\ifanon
+\anontrue
+\ifanon
+  \newcommand{\RepoURL}{\texttt{<repository URL>}}
+  \newcommand{\EprintURL}{\texttt{<ePrint URL>}}
+\else
+  \newcommand{\RepoURL}{\url{https://github.com/cux-rn/fable}}
+  \newcommand{\EprintURL}{\texttt{<ePrint number pending>}}
+\fi
+
 \title[Fable]{Fable: A ChaCha-Derived Permutation with Single-Pass Authenticated Encryption, Key Commitment and Chunk-Parallel Streaming}
-\author{Anonymous submission}
-\institute{--- \\ \email{---}}
+\ifanon
+  \author{Anonymous Submission}
+  \institute{--- \\ \email{---}}
+\else
+  \author{cux-rn}
+  \institute{Independent researcher \\ \email{cux_rn@outlook.com}}
+\fi
 
 \begin{document}
 \maketitle
@@ -54,7 +72,7 @@ We report a first-party analysis that is fully reproducible from the accompanyin
 \section{Introduction}
 \label{sec:intro}
 
-Authenticated encryption in deployed protocols is dominated by two families: AES-GCM, which depends on hardware support for the block cipher and the field multiplication, and ChaCha20-Poly1305~\cite{RFC8439}, which runs on any CPU but pays for authentication with a second pass (Poly1305) over the data and inherits a 96-bit nonce that cannot safely be chosen at random---the extended-nonce variant XChaCha20-Poly1305~\cite{XChaCha} repairs the latter with an extra HChaCha20 call. Neither is key-committing~\cite{BH22}: for both, an adversary can craft a single ciphertext that decrypts correctly under two different keys, a property that has led to concrete attacks on message franking, envelope encryption and abuse-reporting systems. Permutation-based designs such as Ascon~\cite{Ascon21} and NORX~\cite{NORX14} solve the ``single pass'' part of the problem with the keyed duplex~\cite{BDPV11}, but they were optimised for lightweight or 64-bit-word platforms respectively, and the commitment question was not a design goal.
+Authenticated encryption in deployed protocols is dominated by two families: AES-GCM, which depends on hardware support for the block cipher and the field multiplication, and ChaCha20-Poly1305~\cite{RFC8439}, which runs on any CPU but pays for authentication with a second pass (Poly1305) over the data and inherits a 96-bit nonce that cannot safely be chosen at random---the extended-nonce variant XChaCha20-Poly1305~\cite{XChaCha} repairs the latter with an extra HChaCha20 call. Neither is key-committing~\cite{BH22}: for both, an adversary can craft a single ciphertext that decrypts correctly under two different keys, a property that has led to concrete attacks on message franking, envelope encryption and abuse-reporting systems~\cite{GLR17,DGRW18,ADGKLS22}. Permutation-based designs such as Ascon~\cite{Ascon21} and NORX~\cite{NORX14} solve the ``single pass'' part of the problem with the keyed duplex~\cite{BDPV11}, but they were optimised for lightweight or 64-bit-word platforms respectively, and the commitment question was not a design goal.
 
 \Fable is an attempt to combine, in one primitive, the properties we believe a general-purpose file and stream encryption tool needs today:
 
@@ -78,18 +96,18 @@ Each of the four goals above is met by some deployed or standardised scheme; the
 \begin{enumerate}
 \item The specification of \FableP, \FableAEAD, \FableStream and \FableHash with two domain-separated parameter sets and test vectors (\S\ref{sec:spec}).
 \item A design rationale that records, for each choice, the experiment that motivated it (\S\ref{sec:rationale}).
-\item A reproducible first-party analysis (\S\ref{sec:security}): avalanche with $5\times10^5$ states per round count; SAT differential bounds in the unconstrained model (1 round: $2^{-2}$ exact; 2 rounds: $\leq 2^{-\WuncTwo}$) and in the rate-restricted duplex model (1 round: $2^{-22}$ exact; 2 rounds: $\leq 2^{-\WrateTwo}$; no internal collision within half a round), combined into a split bound of $2^{-\BoundEight}$ for any forgery trail through $\PP{8}$ and $2^{-\BoundSix}$ through $\PP{6}$; a rotation-constant screening over all $32^4$ choices for the single-quarter-round metric and 254,576 choices for the one-round metric, showing that neither metric can separate them; a differential-linear evaluation with $2^{22}$ samples per bit pair showing that the round constants do not change the bias envelope relative to the \ChaCha round structure; exact linear-trail optima (1 round $2^{-1}$, 2 rounds $2^{-\WlinTwo}$) and a hull enumeration (no hull effect in 1 round; factors 3--9 in 2 rounds depending on the mask pair); rotational-XOR bounds ($\leq 2^{-419}$ for $\PP{6}$); slide and fixed-point checks; the key-commitment reduction; and multi-user STREAM bounds.
+\item A reproducible first-party analysis (\S\ref{sec:security}): avalanche with $5\times10^5$ states per round count; SAT differential bounds in the unconstrained model (1 round: $2^{-2}$ exact; 2 rounds: $\leq 2^{-\WuncTwo}$) and in the rate-restricted duplex model (1 round: $2^{-22}$ exact; 2 rounds: $\leq 2^{-\WrateTwo}$; no internal collision within half a round), combined into a split bound of $2^{-\BoundEight}$ for any forgery trail through $\PP{8}$ and $2^{-\BoundSix}$ through $\PP{6}$; a rotation-constant screening over all $32^4$ choices for the single-quarter-round metric and 254,576 choices for the one-round metric, showing that neither metric can separate them; a differential-linear evaluation with $2^{22}$ samples per bit pair showing that the round constants do not change the bias envelope relative to the \ChaCha round structure; exact linear-trail optima (1 round $2^{-1}$, 2 rounds $2^{-\WlinTwo}$) and a hull enumeration (no hull effect in 1 round; factors 3--9 in 2 rounds depending on the mask pair); rotational-XOR estimates under the independent-addition model ($\approx 2^{-419}$ for $\PP{6}$); slide and fixed-point checks; the key-commitment reduction; and multi-user STREAM bounds.
 \item Portable C and AVX2 implementations, byte-exact against the Python reference, with throughput measurements against OpenSSL on the same machine (\S\ref{sec:impl}).
 \end{enumerate}
 
 \paragraph{Status.}
-\Fable is a research draft (specification v0.4). Every number in this paper is taken from the analysis log of the public repository, each with the command that regenerates it and the raw data file it was computed from; the log also lists what has \emph{not} been done (\S\ref{sec:conclusion}). Until independent cryptanalysis has been published, \Fable must not be used to protect real data.
+\Fable is a research draft (specification v0.5). Every number in this paper is taken from the analysis log of the public repository, each with the command that regenerates it and the raw data file it was computed from; the log also lists what has \emph{not} been done (\S\ref{sec:conclusion}). Until independent cryptanalysis has been published, \Fable must not be used to protect real data.
 
 % =====================================================================
 \section{Specification}
 \label{sec:spec}
 
-This section is a transcription of specification v0.4 (\texttt{Fable-spec-v0.4.md} in the repository); the Python reference \texttt{fable.py} and the C implementation are the normative tie-breakers and agree bit for bit on all test vectors.
+This section is a transcription of specification v0.5 (\texttt{Fable-spec-v0.5.md} in the repository); the Python reference \texttt{fable.py} and the C implementation are the normative tie-breakers and agree bit for bit on all test vectors.
 
 \subsection{Notation}
 All words are 32-bit unsigned integers; byte strings are converted to words little-endian. $+$ denotes addition modulo $2^{32}$, $\oplus$ XOR, and $x \rotl n$ rotation of a 32-bit word to the left by $n$ positions. The state $S$ consists of sixteen words $S[0..15]$, viewed as a $4\times4$ matrix in row-major order:
@@ -232,7 +250,7 @@ receive the same input $(S[0],S[4],S[8],S[12])$, hence produce the same output, 
 also receive identical inputs---each diagonal picks one word from each row, and all words of a row are equal---so the diagonal step preserves $\mathcal{V}$ as well.
 \end{proof}
 
-The all-zero state is a fixed point of $F_0$ (it lies in $\mathcal{V}$ and $Q(0,0,0,0) = 0$), and $\mathcal{V}$ is the only ``large'' symmetric class we found to be invariant: the classes ``four identical rows'' and ``all sixteen words equal'' are left after one round. A constant XORed into a single word $S[0]$ already makes column 0 differ from columns 1--3; \FableP injects into two words, $S[0]$ and $S[5]$, which lie in different columns (0 and 1), different rows (0 and 1) and on the same diagonal, so that in one round the constant enters two of the four column quarter-rounds and one diagonal quarter-round, and the two injections never cancel: $\mathrm{RC}[i] \oplus (\mathrm{RC}[i] \rotl 16) \neq 0$ for all $i$ and $\mathrm{RC}[i] \neq \mathrm{RC}[j] \rotl 16$ for all $i,j$.
+The all-zero state is a fixed point of $F_0$ (it lies in $\mathcal{V}$ and $Q(0,0,0,0) = 0$), and $\mathcal{V}$ is the only ``large'' symmetric class we found to be invariant: the classes ``four identical rows'' and ``all sixteen words equal'' are left after one round. The scope of that check is limited: we examined exactly these three classes and the four constant states (all-\texttt{0x00000000}, all-\texttt{0xFFFFFFFF}, all-\texttt{0x80000000}, all-\texttt{0x00000001}); no systematic search for invariant subspaces of the constant-free round was performed, and we list it as an open problem (\S\ref{sec:conclusion}). A constant XORed into a single word $S[0]$ already makes column 0 differ from columns 1--3; \FableP injects into two words, $S[0]$ and $S[5]$, which lie in different columns (0 and 1), different rows (0 and 1) and on the same diagonal, so that in one round the constant enters two of the four column quarter-rounds and one diagonal quarter-round, and the two injections never cancel: $\mathrm{RC}[i] \oplus (\mathrm{RC}[i] \rotl 16) \neq 0$ for all $i$ and $\mathrm{RC}[i] \neq \mathrm{RC}[j] \rotl 16$ for all $i,j$.
 
 The constants themselves are the fractional parts of $\ln p_i$ for the first twelve primes. We chose the natural logarithm rather than the square or cube roots used by SHA-2 so that no bit pattern is shared with another standard and no ``reused constant'' question arises; the resulting words are pairwise distinct, none is a rotation of another, and their minimum pairwise Hamming distance is 9. A reduced permutation uses the \emph{last} $n$ constants, so that $\PP{8}$ and $\PP{6}$ are suffixes of $\PP{12}$, as in Ascon~\cite{Ascon21}: any analysis of the heavy permutation restricted to its last rounds is directly an analysis of the light one, and the suffix sequence $\mathrm{RC}[6..11]$ does not recur as a window elsewhere in the table, which is what a slide attack between the two permutations would need.
 
@@ -297,7 +315,7 @@ $n$ & mean $p$ & $\max|p-\tfrac12|$ & pairs $>0.02$ & pairs $>0.01$ & pairs $>0.
 
 \begin{lemma}[probability-one quarter-round differential]
 \label{lem:msb}
-For every choice of rotation constants $(r_0,r_1,r_2,r_3)$, the quarter-round $Q$ has a differential of probability one with a nonzero input difference, namely
+For every choice of rotation constants $(r_0,r_1,r_2,r_3)$, the quarter-round $Q$ has a differential trail of probability one (hence a differential of probability one) with a nonzero input difference, namely
 $(\Delta a,\Delta b,\Delta c,\Delta d) = (0,\ \mathrm{MSB},\ 0,\ \mathrm{MSB}\oplus \mathrm{bit}(31-r_0)) \to (\mathrm{MSB},\ \mathrm{bit}(r_3-1),\ \mathrm{MSB},\ 0)$, where $\mathrm{MSB} = \mathrm{bit}(31)$ and $\mathrm{bit}(j) = 2^j$.
 \end{lemma}
 \begin{proof}
@@ -336,17 +354,19 @@ Table~\ref{tab:diffrate} summarises. The rate-restricted one-round optimum is 22
 \centering
 \caption{Minimum trail weight under the duplex data-phase constraints (\texttt{data/diff/perm\_r*\_rate*.json}, \texttt{*.log}). ``imp.'' = unsatisfiable up to weight 160.}
 \label{tab:diffrate}
+\small
 \begin{tabular}{lcccc}
 \toprule
-constraints & $\tfrac12$ round & 1 round & 2 rounds & 3 rounds\\
+constraints & $\tfrac12$ rd & 1 round & 2 rounds & 3 rounds\\
 \midrule
 none & 0 & 2 (exact) & $\geq \WuncTwo$ & $\geq \the\numexpr 2+\WuncTwo\relax$ (split)\\
-rate-in & 2 (exact) & 22 (exact, verified) & $\geq \WrateTwo$ & $\geq \WrateThree$ (split; SAT reached 43)\\
+rate-in & 2 (exact) & 22 (exact, ver.) & $\geq \WrateTwo$ & $\geq \WrateThree$ (split)$^{a}$\\
 rate-in + rate-out-nonzero & -- & 22 (exact) & -- & --\\
-rate-in + cap-out-zero & imp. & $\geq 43$ & $\geq 41$ & --\\
-cap-out-zero only & -- & 6 (exact, verified) & -- & --\\
+rate-in + cap-out-zero & imp. & $\geq 43$ & $\geq \WrateTwo$ (implied)$^{b}$ & --\\
+cap-out-zero only & -- & 6 (exact, ver.) & -- & --\\
 \bottomrule
-\end{tabular}
+\end{tabular}\\[2pt]
+{\footnotesize $^{a}$ the direct SAT search reached 43 before its time cap; the split $\WrateTwo + 2$ is now larger. $^{b}$ the direct search reached 41 before it was stopped; adding a constraint cannot lower the minimum, so the rate-in bound $\WrateTwo$ applies.}
 \end{table}
 
 \paragraph{Split bounds.}
@@ -512,7 +532,7 @@ weight-48 trail & 54 & 544 & 181 / 363 & $2^{-45.02}$ & $\times 7.9$\\
 \label{sec:rx}
 \paragraph{Model.} A rotational pair $(x, x\rotl k)$ survives a modular addition with probability $p_k = (1 + 2^{k-32} + 2^{-k} + 2^{-32})/4$~\cite{KN10}: $2^{-1.415}$ for $k = 1$, $2^{-2.0}$ for $k = 16$. This is paid at every one of the 32 additions per round regardless of constants: $2^{-45.3}$ per round, $2^{-271.7}$ for $\PP{6}$ and $2^{-543.4}$ for $\PP{12}$ at $k = 1$. A constant $c$ XORed into a word changes the rotational-XOR difference by $c \oplus (c\rotl k)$~\cite{AL16}, which must then pass the following additions at a cost of roughly its Hamming weight minus at most 2.
 
-\paragraph{Result.} For $k = 1$ the injected weights per round are $\mathrm{hw}(\mathrm{RC}[i]\oplus(\mathrm{RC}[i]\rotl 1)) = 14, 18, 10, 16, 16, 18, 16, 10, 16, 14, 16, 14$ for $i = 0..11$, and the same values for the $S[5]$ injection; no round injects a zero difference for any $k \in \{1,\ldots,31\}$ (minimum $\mathrm{hw}(d_0)+\mathrm{hw}(d_5) = 16$, at $k = 4$, round 8). Adding the crude lower bound $\max(0,\mathrm{hw}-2)$ per injection gives $\geq 148$ extra bits for $\PP{6}$ and $\geq 308$ for $\PP{12}$, i.e.\ rotational-XOR trail probabilities of at most $2^{-419.7}$ for $\PP{6}$ and $2^{-851.4}$ for $\PP{12}$ at $k = 1$ (lower still for other $k$). Empirically, one quarter-round is rotational with probability $2^{-7.18}$ over $2^{20}$ samples without a constant (the independent-addition model predicts $2^{-5.66}$; chained additions are known to make the true value smaller~\cite{KNPSS15}), and $0$ of $2^{20}$ after XORing $\mathrm{RC}[6]$ into $a$. The structure alone puts rotational attacks far below $2^{-256}$ for six rounds; the constants add to that, and an exact SAT model of rotational-XOR trails with constants was therefore not built. Data: \texttt{data/rx\_check.txt}.
+\paragraph{Result.} For $k = 1$ the injected weights per round are $\mathrm{hw}(\mathrm{RC}[i]\oplus(\mathrm{RC}[i]\rotl 1)) = 14, 18, 10, 16, 16, 18, 16, 10, 16, 14, 16, 14$ for $i = 0..11$, and the same values for the $S[5]$ injection; no round injects a zero difference for any $k \in \{1,\ldots,31\}$ (minimum $\mathrm{hw}(d_0)+\mathrm{hw}(d_5) = 16$, at $k = 4$, round 8). Adding the crude cost $\max(0,\mathrm{hw}-2)$ per injection gives about $148$ extra bits for $\PP{6}$ and $308$ for $\PP{12}$, i.e.\ rotational-XOR trail probability \emph{estimates}, under the independent-addition model, of about $2^{-419.7}$ for $\PP{6}$ and $2^{-851.4}$ for $\PP{12}$ at $k = 1$ (lower still for other $k$). These are estimates, not proven bounds: the per-addition factor assumes independence between chained additions, which is known not to hold exactly~\cite{KNPSS15}, and the constant cost is a heuristic. Empirically, one quarter-round is rotational with probability $2^{-7.18}$ over $2^{20}$ samples without a constant (the independent-addition model predicts $2^{-5.66}$; chained additions are known to make the true value smaller~\cite{KNPSS15}), and $0$ of $2^{20}$ after XORing $\mathrm{RC}[6]$ into $a$. The structure alone puts rotational attacks far below $2^{-256}$ for six rounds; the constants add to that, and an exact SAT model of rotational-XOR trails with constants was therefore not built. Data: \texttt{data/rx\_check.txt}.
 
 \subsection{Constants, symmetry, slide and fixed points}
 \label{sec:constcheck}
@@ -520,7 +540,7 @@ The claims of \S\ref{sec:constants} were checked by \path{tools/check_constants.
 \begin{enumerate}
 \item the twelve constants recomputed from $\ln p_i$ with 60-digit precision match the table; they are pairwise distinct, none equals another rotated by any amount, no $\mathrm{RC}[i]$ equals $\mathrm{RC}[j]\rotl 16$, the minimum pairwise Hamming distance is 9, and $\mathrm{RC}[i]\oplus(\mathrm{RC}[i]\rotl 16) \neq 0$ for all $i$;
 \item with constants set to zero, the all-zero state is a fixed point of 12 rounds and the column-symmetric subspace $\mathcal{V}$ is preserved by 1--12 rounds, whereas the row-symmetric and all-equal classes are left after one round;
-\item with the constants, every structured input (all-zero, all-one, all-$\mathrm{MSB}$, all-1, three random members each of $\mathcal{V}$, of the row-symmetric class and of the all-equal class) gives an output after $n = 1..12$ rounds---counted both as a prefix and as a suffix of $\PP{12}$---that is neither symmetric nor a fixed point, and $10^4$ random members of $\mathcal{V}$ leave $\mathcal{V}$ after every one of the twelve rounds;
+\item with the constants, every structured input (all-\texttt{0x00000000}, all-\texttt{0xFFFFFFFF}, all-\texttt{0x80000000}, all-\texttt{0x00000001}, three random members each of $\mathcal{V}$, of the row-symmetric class and of the all-equal class) gives an output after $n = 1..12$ rounds---counted both as a prefix and as a suffix of $\PP{12}$---that is neither symmetric nor a fixed point, and $10^4$ random members of $\mathcal{V}$ leave $\mathcal{V}$ after every one of the twelve rounds;
 \item slide: no two constants are equal, no constant is a rotation of another, the suffix $\mathrm{RC}[6..11]$ used by $\PP{6}$ is not periodic and does not occur as another window of the table, and the eleven consecutive XOR differences $\mathrm{RC}[i]\oplus\mathrm{RC}[i+1]$ are distinct (no affine slide);
 \item fixed points: none of the structured inputs is a fixed point of any $\PP{n}$, and $2^{18}$ random states contain no one-round fixed point. A random permutation has about one fixed point; only structured ones can be excluded.
 \end{enumerate}
@@ -547,7 +567,7 @@ The model's practical premise is that $\PP{12}$ admits no collision shortcut, i.
 
 \subsection{Multi-user and STREAM bounds}
 \label{sec:mu}
-\paragraph{Model.} \FableAEAD is a keyed duplex with $b = 512$, $r = c = 256$, $k = 256$; $\mu$ users hold independent keys; the adversary makes $N$ offline permutation evaluations, $M$ online data blocks in total (32 bytes each, plus two calls per message for initialisation and finalisation) and $q_D$ verification queries; nonces are respected. Writing the multi-user keyed-duplex bound of Daemen, Mennink and Van Assche~\cite{DMV17} (which refines Jovanovic--Luykx--Mennink~\cite{JLM14}) with its multiplicity terms $L, \Omega$ collapsed to their worst case $\leq M$ and constants omitted,
+\paragraph{Model.} \FableAEAD is a keyed duplex with $b = 512$, $r = c = 256$, $k = 256$; $\mu$ users hold independent keys; the adversary makes $N$ offline permutation evaluations, $M$ online data blocks in total (32 bytes each, plus two calls per message for initialisation and finalisation) and $q_D$ verification queries; nonces are respected. Writing the multi-user keyed-duplex bound of Daemen, Mennink and Van Assche~\cite{DMV17} (which refines Jovanovic--Luykx--Mennink~\cite{JLM14}) with its multiplicity terms $L, \Omega$ collapsed to their worst case $\leq M$ and constants omitted,\footnote{The expression with the $L$ and $\Omega$ terms kept separate, and the reasoning for collapsing them, is in \texttt{docs/security-bounds.md} of the repository.}
 \[
 \mathrm{Adv} \;\leq\; \underbrace{\frac{\mu N}{2^{k}}}_{[A]} + \underbrace{\frac{M N}{2^{c}}}_{[B]} + \underbrace{\frac{M^2}{2^{c+1}}}_{[C]} + \underbrace{\frac{(M+N)^2}{2^{b+1}}}_{[D]} + \underbrace{\frac{q_D}{2^{\tau}}}_{[E]} + \underbrace{\frac{F^2}{2^{153}}}_{[F]},
 \]
@@ -586,7 +606,7 @@ The following are not established by this paper and are listed so that they are 
 \begin{itemize}
 \item direct (non-split) differential trail bounds for three or more rounds; the three-round rate-restricted bound of $\geq 43$ is the furthest the solver reached within its time cap;
 \item exact differential optima for two rounds ($\geq \WuncTwo$ unconstrained, $\geq \WrateTwo$ rate-restricted); those searches were stopped, not completed (the two-round linear optimum, by contrast, is exact);
-\item differential (clustering) probabilities as opposed to trail probabilities; the $\the\numexpr\BoundEight-128\relax$-bit margin of the $2^{-\BoundEight}$ split bound over $2^{-128}$ does not cover clustering, and the corresponding hull allowance for linear cryptanalysis was measured only for one two-round mask pair;
+\item differential (clustering) probabilities as opposed to trail probabilities; the $\the\numexpr\BoundEight-128\relax$-bit margin of the $2^{-\BoundEight}$ split bound over $2^{-128}$ does not cover clustering, and the corresponding hull allowance for linear cryptanalysis was measured only for two two-round mask pairs;
 \item algebraic, cube and integral attacks, and guess-and-determine attacks on the initialisation;
 \item fault, probing and other physical attacks (excluded by the specification);
 \item dedicated analysis of \FableHash beyond the flat sponge claim inherited from the permutation;
@@ -661,7 +681,7 @@ set & path & threads & GB/s & cpb & speed-up\\
 \end{tabular}
 \end{table}
 
-\paragraph{Comparison.} Table~\ref{tab:cmp} shows ChaCha20-Poly1305 and AES-256-GCM on the same machine, measured in the same session as Table~\ref{tab:stream} with the process pinned to logical CPU 0 at high priority (via \texttt{psutil}), i.e.\ under the same conditions as the \Fable runs. The OpenSSL~3.5 figures were obtained through the \texttt{cryptography} Python package (whose wheel bundles OpenSSL) on a 1\,GiB buffer, once as a single call and once as a loop over 64\,KiB pieces (the loop is faster, presumably from cache effects), and through \texttt{openssl speed} on 16\,KiB blocks. The libsodium figure comes from the \texttt{pynacl} wheel, whose bundled build evidently lacks the AVX2 path, and is listed only to explain why it is not used as a reference. The default \Fable parameter set is on par with OpenSSL's ChaCha20-Poly1305 (2.00 against 1.57--2.37\,GB/s depending on the measurement), and \FableF is 7--60\,\% faster; both include authentication. AES-256-GCM with AES-NI and \texttt{PCLMULQDQ} is three times faster than either. This places \Fable in the niche of ChaCha20: platforms without AES acceleration, constant time at no cost, and---beyond ChaCha20-Poly1305---a random-safe nonce and key commitment; where AES-NI is available and those properties are not needed, AES-GCM and AEGIS~\cite{AEGIS13} are faster.
+\paragraph{Comparison.} Table~\ref{tab:cmp} shows ChaCha20-Poly1305 and AES-256-GCM on the same machine, measured in the same session as Table~\ref{tab:stream} with the process pinned to logical CPU 0 at high priority (via \texttt{psutil}), i.e.\ under the same conditions as the \Fable runs. The OpenSSL~3.5 figures were obtained through the \texttt{cryptography} Python package (whose wheel bundles OpenSSL) on a 1\,GiB buffer, once as a single call and once as a loop over 64\,KiB pieces (the loop is faster, presumably from cache effects), and through \texttt{openssl speed} on 16\,KiB blocks. The libsodium figure comes from the \texttt{pynacl} wheel, whose bundled build evidently lacks the AVX2 path, and is listed only to explain why it is not used as a reference. The default \Fable parameter set is on par with OpenSSL's ChaCha20-Poly1305 (2.00 against 1.57--2.37\,GB/s depending on the measurement), and \FableF is 7--60\,\% faster; both include authentication. AES-256-GCM with AES-NI and \texttt{PCLMULQDQ} is 2.4--3$\times$ faster than either. This places \Fable in the niche of ChaCha20: platforms without AES acceleration, constant time at no cost, and---beyond ChaCha20-Poly1305---a random-safe nonce and key commitment; where AES-NI is available and those properties are not needed, AES-GCM and AEGIS~\cite{AEGIS13} are faster.
 
 \begin{table}[htb]
 \centering
@@ -697,13 +717,14 @@ No ARM/NEON implementation exists (the transposed eight-lane design maps to four
 \begin{enumerate}
 \item \emph{Two-round differential optima and clustering.} The $2^{-\BoundEight}$ bound rests on two SAT lower bounds ($\WrateTwo$ rate-restricted, $\WuncTwo$ unconstrained) that were stopped, not completed, and it bounds trails, not differentials. Finding the exact two-round differential optima (the linear one, weight $\WlinTwo$, took 5.2 CPU-hours for its last level and is done), and estimating how many trails share the input/output differences of the best ones, would say whether the $\the\numexpr\BoundEight-128\relax$-bit margin over $2^{-128}$ is real. Every bit gained on both two-round bounds adds four bits to the $\PP{8}$ bound.
 \item \emph{A dedicated attack on the data phase.} We calibrated \FableP against \ChaCha but did not attempt a differential-linear or PNB-style attack in the duplex model itself, where the adversary controls a 256-bit rate difference, sees only 256 output bits and faces a 256-bit secret capacity. Whether that model is easier or harder than the \ChaCha PRF model for 16 single rounds is the question the round count depends on.
+\item \emph{Invariant subspace search.} Only three symmetry classes and four constant states were checked against the constant-free round (\S\ref{sec:constants}); a systematic search for invariant subspaces of the bare \ChaCha double round, and for subspaces that the two constant injections fail to leave, has not been done.
 \item \emph{Algebraic and cube attacks on initialisation.} The initialisation permutation has a 64-bit constant prefix, a 256-bit key and a 192-bit chosen nonce; cube and conditional-cube attacks on 24 single rounds have not been evaluated.
 \item \emph{\FableHash.} Only the flat sponge claim inherited from the permutation is made; collision and preimage attacks on reduced rounds of the hash have not been studied.
 \item \emph{NEON and short messages.} No ARM implementation exists, and the latency of a single message shorter than a chunk, where the two $\PP{12}$ calls dominate, has not been measured.
 \item \emph{Side channels.} The constant-time properties are argued from the code and have not been tested on hardware.
 \end{enumerate}
 
-\paragraph{Status.} All analysis reported here is first-party; no third party has examined \Fable, and the differential bounds beyond two rounds are split bounds rather than direct ones. \Fable must not be used to protect real data until independent cryptanalysis has been published. The specification, the reference and C/AVX2 implementations, every script and every raw data file behind the numbers in this paper, and the analysis log that records what was tried and what failed, are available at \texttt{<repository URL>}; a preprint is at \texttt{<ePrint URL>}. We invite analysis of the permutation, of the rate-restricted duplex model, and of the claims in \S\ref{sec:security}.
+\paragraph{Status.} All analysis reported here is first-party; no third party has examined \Fable, and the differential bounds beyond two rounds are split bounds rather than direct ones. \Fable must not be used to protect real data until independent cryptanalysis has been published. The specification, the reference and C/AVX2 implementations, every script and every raw data file behind the numbers in this paper, and the analysis log that records what was tried and what failed, are available at \RepoURL; a preprint is at \EprintURL. We invite analysis of the permutation, of the rate-restricted duplex model, and of the claims in \S\ref{sec:security}.
 
 \bibliographystyle{alpha}
 \bibliography{refs}
@@ -800,6 +821,25 @@ rank & $(r_0,r_1,r_2,r_3)$ & 1.5-round wt & 2-round wt & avalanche mean & never-
 
 \section{Reproduction commands}
 \label{app:repro}
+Additional commands used for the final numbers, all also in \path{reproduce.sh} and the analysis log: the pinned reference benchmarks of Table~\ref{tab:cmp} and the background continuations of the two-round SAT searches from their previously proven levels.
+\begin{verbatim}
+# ChaCha20-Poly1305 references (OpenSSL via cryptography,
+# libsodium via pynacl), pinned to CPU 0 at HIGH priority
+python tools/bench_chacha.py 1024
+# openssl speed, pinned: chacha20-poly1305 and aes-256-gcm
+python tools/bench_openssl_pinned.py 3
+# two-round SAT lower bounds resumed from the proven level
+# (stopped at 42 / 33; linear optimum 20 found)
+python sat/fable_diff.py perm --rounds 2 --rot 16,12,8,7 \
+       --rate-in --kstart 39 --solver cadical153
+python sat/fable_diff.py perm --rounds 2 --rot 16,12,8,7 \
+       --kstart 31 --solver cadical153
+python sat/fable_lin.py perm --rounds 2 --rot 16,12,8,7 \
+       --kstart 19 --solver cadical153
+# hull of the exact two-round linear optimum
+python sat/lin_hull.py enumerate --wmax 24 --samples 0 \
+       --trail data/lin/lin_r2_v04.json
+\end{verbatim}
 All commands run from the repository root (Windows/clang shown; \texttt{c/build.sh} also builds on POSIX). Long SAT searches print one line per proven weight level and can be resumed from a proven bound with \texttt{--kstart}.
 
 \begin{lstlisting}[basicstyle=\ttfamily\footnotesize,breaklines=true]

@@ -1,4 +1,4 @@
-# Fable v0.4.1（研究草案）
+# Fable v0.5（研究草案）
 
 **未经公开密码分析，禁止用于任何真实数据。** All analysis is first-party; Fable must not be used to protect real data until independent cryptanalysis has been published.
 
@@ -6,7 +6,7 @@ Fable 是一个 512 bit ARX 置换（ChaCha 双轮 + 轮常量注入）及其上
 
 ## 文件
 
-- `Fable-spec-v0.4.1.md` — 当前规范（历史版本 v0.1～v0.4 保留）
+- `Fable-spec-v0.5.md` — 当前规范（历史版本 v0.1～v0.4.1 保留）
 - `paper/fable.tex`、`paper/refs.bib` — 论文（IACR ToSC `iacrtrans` 格式）
 - `fable.py` — Python 参考实现（规范性）；`test_fable.py` — 功能测试与向量生成
 - `test_vectors_v0.3.json` — 测试向量（两参数集）；`test_vectors_v0.1.json` — v0.1 向量（= Fable-f）

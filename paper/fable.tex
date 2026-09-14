@@ -219,7 +219,15 @@ Every choice below is tied to an experiment or a proof in \S\ref{sec:security}; 
 Let $\mathcal{V} = \{S : S[4j+k] = S[4j] \text{ for all } j,k \in \{0,1,2,3\}\}$ be the set of states whose four columns are identical ($|\mathcal{V}| = 2^{128}$). Then $F_0(\mathcal{V}) = \mathcal{V}$.
 \end{lemma}
 \begin{proof}
-For $S \in \mathcal{V}$ the four column quarter-rounds $Q(S[j],\allowbreak S[4{+}j],\allowbreak S[8{+}j],\allowbreak S[12{+}j])$, $j = 0,\ldots,3$, receive the same input $(S[0],\allowbreak S[4],\allowbreak S[8],\allowbreak S[12])$, hence produce the same output, so the state after the column step is again in $\mathcal{V}$. For such a state the four diagonal quarter-rounds $Q(S[0],S[5],S[10],S[15])$, $Q(S[1],S[6],S[11],S[12])$, $Q(S[2],S[7],S[8],S[13])$, $Q(S[3],S[4],S[9],S[14])$ also receive identical inputs---each diagonal picks one word from each row, and all words of a row are equal---so the diagonal step preserves $\mathcal{V}$ as well.
+For $S \in \mathcal{V}$ the four column quarter-rounds
+\[
+Q(S[j],\,S[4{+}j],\,S[8{+}j],\,S[12{+}j]),\qquad j = 0,\ldots,3,
+\]
+receive the same input $(S[0],S[4],S[8],S[12])$, hence produce the same output, so the state after the column step is again in $\mathcal{V}$. For such a state the four diagonal quarter-rounds
+\[
+Q(S[0],S[5],S[10],S[15]),\; Q(S[1],S[6],S[11],S[12]),\; Q(S[2],S[7],S[8],S[13]),\; Q(S[3],S[4],S[9],S[14])
+\]
+also receive identical inputs---each diagonal picks one word from each row, and all words of a row are equal---so the diagonal step preserves $\mathcal{V}$ as well.
 \end{proof}
 
 The all-zero state is a fixed point of $F_0$ (it lies in $\mathcal{V}$ and $Q(0,0,0,0) = 0$), and $\mathcal{V}$ is the only ``large'' symmetric class we found to be invariant: the classes ``four identical rows'' and ``all sixteen words equal'' are left after one round. A constant XORed into a single word $S[0]$ already makes column 0 differ from columns 1--3; \FableP injects into two words, $S[0]$ and $S[5]$, which lie in different columns (0 and 1), different rows (0 and 1) and on the same diagonal, so that in one round the constant enters two of the four column quarter-rounds and one diagonal quarter-round, and the two injections never cancel: $\mathrm{RC}[i] \oplus (\mathrm{RC}[i] \rotl 16) \neq 0$ for all $i$ and $\mathrm{RC}[i] \neq \mathrm{RC}[j] \rotl 16$ for all $i,j$.
@@ -370,7 +378,7 @@ segments (rounds: bound used) & total weight\\
 \caption{Degeneration of the screening metrics.}
 \label{tab:screen}
 \small
-\begin{tabular}{p{3.4cm}p{4.0cm}p{5.6cm}}
+\begin{tabular}{p{2.9cm}p{3.6cm}p{5.2cm}}
 \toprule
 metric & coverage & result\\
 \midrule
@@ -522,7 +530,7 @@ Model $\PP{12}$ as a random permutation $\pi$ of $\{0,1\}^{512}$ to which the ad
 \]
 \end{theorem}
 \begin{proof}[Proof sketch]
-Let $X, X'$ be the two pre-finalisation states. (i) If $X \neq X'$, then $\mathrm{trunc}_\tau(\pi(X)) = \allowbreak \mathrm{trunc}_\tau(\pi(X'))$: a collision of the $\tau$-bit truncation of $\pi$ on two distinct queried inputs, probability at most $\binom{q}{2}/2^\tau$ up to the negligible bias of a truncated permutation. (ii) If $X = X'$ and $K \neq K'$, then $Y_R = Y'_R$ and $Y_C \oplus Y'_C = K\oplus K'$: two duplex paths through $\pi$, ending in different queries, whose final states satisfy a fixed 512-bit relation, probability at most $\binom{q}{2}/2^{512}$. (If $K = K'$ and the tuples differ elsewhere, $X = X'$ is a full internal state collision, covered by the same count.) (iii) Otherwise the adversary has guessed the 256-bit capacity of some path, probability at most $q/2^{256}$. A successful output is witnessed by one of the three events, and values of $\pi$ that were never queried are uniform and cannot produce an equal tag except by the same counting.
+Let $X, X'$ be the two pre-finalisation states. (i) If $X \neq X'$, then the $\tau$-bit truncations of $\pi(X)$ and $\pi(X')$ coincide: a collision of the $\tau$-bit truncation of $\pi$ on two distinct queried inputs, probability at most $\binom{q}{2}/2^\tau$ up to the negligible bias of a truncated permutation. (ii) If $X = X'$ and $K \neq K'$, then $Y_R = Y'_R$ and $Y_C \oplus Y'_C = K\oplus K'$: two duplex paths through $\pi$, ending in different queries, whose final states satisfy a fixed 512-bit relation, probability at most $\binom{q}{2}/2^{512}$. (If $K = K'$ and the tuples differ elsewhere, $X = X'$ is a full internal state collision, covered by the same count.) (iii) Otherwise the adversary has guessed the 256-bit capacity of some path, probability at most $q/2^{256}$. A successful output is witnessed by one of the three events, and values of $\pi$ that were never queried are uniform and cannot produce an equal tag except by the same counting.
 \end{proof}
 
 \begin{corollary}

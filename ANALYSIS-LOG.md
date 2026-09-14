@@ -583,6 +583,7 @@ python sat/fable_lin.py  perm --rounds 2 --rot 16,12,8,7 --kstart 19 --solver ca
 | 08:20 起点 | ≥ 39 | ≥ 31 | ≥ 19 | 2^-132 |
 | 10:20（k≤39 UNSAT，7172 s） | **≥ 40** | ≥ 31 | ≥ 19 | 2^-133 |
 | 11:36（无约束 k≤31 UNSAT，11731 s） | ≥ 40 | **≥ 32** | ≥ 19 | 2^-136 |
+| 13:20（速率输入 k≤40 UNSAT，10752 s） | **≥ 41** | ≥ 32 | ≥ 19 | 2^-137 |
 
 **论文**：`paper/fable.tex`（IACR ToSC `iacrtrans` 类）、`paper/refs.bib`。逐节起草，每节经作者审阅后再写下一节；所有数字取自本日志。
 

@@ -224,9 +224,10 @@ For $S \in \mathcal{V}$ the four column quarter-rounds
 Q(S[j],\,S[4{+}j],\,S[8{+}j],\,S[12{+}j]),\qquad j = 0,\ldots,3,
 \]
 receive the same input $(S[0],S[4],S[8],S[12])$, hence produce the same output, so the state after the column step is again in $\mathcal{V}$. For such a state the four diagonal quarter-rounds
-\[
-Q(S[0],S[5],S[10],S[15]),\; Q(S[1],S[6],S[11],S[12]),\; Q(S[2],S[7],S[8],S[13]),\; Q(S[3],S[4],S[9],S[14])
-\]
+\begin{align*}
+&Q(S[0],S[5],S[10],S[15]),\quad Q(S[1],S[6],S[11],S[12]),\\
+&Q(S[2],S[7],S[8],S[13]),\quad Q(S[3],S[4],S[9],S[14])
+\end{align*}
 also receive identical inputs---each diagonal picks one word from each row, and all words of a row are equal---so the diagonal step preserves $\mathcal{V}$ as well.
 \end{proof}
 
